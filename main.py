@@ -7,11 +7,11 @@ import streamlit as st
 # CONFIG
 # =========================
 
-<<<<<<< HEAD
+
 st.set_page_config(page_title="Dashboard Fondos2", layout="wide")
 =======
 st.set_page_config(page_title="Dashboard Fondos", layout="wide")
->>>>>>> 02ea543a95a498ffcac7897ddbbeff8d03897b1c
+
 st.title("📊 Dashboard de Fondos")
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
