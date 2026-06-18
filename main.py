@@ -209,125 +209,14 @@ grid = pd.MultiIndex.from_product(
 
 # 4. merge
 dense = grid.merge(daily, on=["date", "fund"], how="left")
-
+st.write(dense)
 # 5. rellenar ceros (correcto para flujo)
 dense["invested"] = dense["invested"].fillna(0)
-
+st.write(dense)
 # 6. acumulado (stock)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 
 st.write(dense)
-
-# =========================
-# PORTFOLIO DIARIO (CASHFLOW + MARKET VALUE)
-# =========================
-
-# --- 1. Preparación segura ---
-df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
-df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
-df["price"] = pd.to_numeric(df["price"], errors="coerce")
-
-df = df.sort_values("date")
-
-df["units"] = df["amount"] / df["price"]
-
-# --- 2. CASHFLOW diario ---
-daily_cash = (
-    df.groupby(["date", "fund"], as_index=False)["amount"]
-    .sum()
-    .rename(columns={"amount": "invested"})
-)
-
-daily_cash["cum_invested"] = (
-    daily_cash.groupby("fund")["invested"].cumsum()
-)
-
-# --- 3. HOLDINGS (unidades) ---
-daily_units = (
-    df.groupby(["date", "isin"], as_index=False)["units"]
-    .sum()
-)
-
-daily_units["cum_units"] = (
-    daily_units.groupby("isin")["units"].cumsum()
-)
-
-# --- 4. HISTÓRICO VL ---
-hist_df["date"] = pd.to_datetime(hist_df["date"], errors="coerce").dt.normalize()
-hist_df["vl"] = pd.to_numeric(hist_df["vl"], errors="coerce")
-
-# --- 5. MAPA ISIN → FUND ---
-isin_to_fund = dict(zip(fondos["isin"], fondos["fondo"]))
-
-hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
-daily_units["fund"] = daily_units["isin"].map(isin_to_fund)
-
-# --- 6. MERGE HOLDINGS + VL ---
-merged = hist_df.merge(
-    daily_units[["date", "isin", "cum_units"]],
-    on=["date", "isin"],
-    how="left"
-)
-
-merged["fund"] = merged["isin"].map(isin_to_fund)
-
-merged = merged.sort_values(["isin", "date"])
-
-merged["cum_units"] = merged.groupby("isin")["cum_units"].ffill()
-merged["cum_units"] = merged["cum_units"].fillna(0)
-
-# --- 7. VALOR DE MERCADO ---
-merged["market_value"] = merged["cum_units"] * merged["vl"]
-
-# --- 8. DAILY MARKET ---
-daily_market = merged.groupby(
-    ["date", "fund"],
-    as_index=False
-)["market_value"].sum()
-
-# --- 9. GRID DIARIO COMPLETO (CLAVE) ---
-all_dates = pd.date_range(
-    merged["date"].min(),
-    pd.Timestamp.today().normalize(),
-    freq="D"
-)
-
-funds = merged["fund"].dropna().unique()
-
-grid = pd.MultiIndex.from_product(
-    [all_dates, funds],
-    names=["date", "fund"]
-).to_frame(index=False)
-
-daily_market = grid.merge(
-    daily_market,
-    on=["date", "fund"],
-    how="left"
-).fillna(0)
-
-# --- 10. CASHFLOW UNIDO ---
-final = daily_market.merge(
-    daily_cash[["date", "fund", "cum_invested"]],
-    on=["date", "fund"],
-    how="left"
-)
-
-final["cum_invested"] = final["cum_invested"].ffill().fillna(0)
-
-# --- 11. PORTFOLIO TOTAL ---
-portfolio = final.groupby("date", as_index=False).agg({
-    "market_value": "sum",
-    "cum_invested": "sum"
-})
-
-portfolio["profit"] = portfolio["market_value"] - portfolio["cum_invested"]
-
-portfolio["return_%"] = portfolio["profit"] / portfolio["cum_invested"] * 100
-portfolio["return_%"] = portfolio["return_%"].fillna(0)
-
-st.write(portfolio)
-
-
 
 
 
