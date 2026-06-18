@@ -471,7 +471,9 @@ fig_pie = go.Figure(
 )
 
 fig_pie.update_layout(
-    title="Distribución de la cartera"
+    title="Distribución de la cartera",
+    height=600,
+    width=900
 )
 
 st.plotly_chart(fig_pie, use_container_width=True)
