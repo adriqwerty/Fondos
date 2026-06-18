@@ -463,15 +463,15 @@ fig_pie = go.Figure(
     data=[
         go.Pie(
             labels=alloc["fund"],
-            values=alloc["market_value"],
-            hole=0.4,  # donut style (más moderno)
+            values=alloc["value"],   # 👈 FIX
+            hole=0.4,
             textinfo="label+percent"
         )
     ]
 )
 
 fig_pie.update_layout(
-    title="Distribución de la cartera",
+    title="Distribución de la cartera"
 )
 
 st.plotly_chart(fig_pie, use_container_width=True)
