@@ -332,6 +332,7 @@ df_view = df_view.rename(columns={
     "rentabilidad": "Rentabilidad (%)",
 })
 
+df_view = df_view.drop(columns=["units"])
 styled = (
     df_view.style
     .format({
@@ -352,7 +353,7 @@ styled = (
         "font-weight": "bold"
     })
 )
-df_view.df_view.drop("units")
+
 st.dataframe(
     styled,
     use_container_width=True,
