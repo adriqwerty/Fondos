@@ -454,8 +454,10 @@ st.plotly_chart(fig2, use_container_width=True)
 latest = dense.sort_values("date").groupby("fund").tail(1)
 latest = latest.dropna(subset=["market_value"])
 
-alloc = latest.groupby("fund", as_index=False).agg(
-    value=("market_value", "sum")
+alloc = (
+    latest.groupby("fund", as_index=False)
+    .agg(value=("market_value", "sum"))
+    .sort_values("value", ascending=False)
 )
 
 fig_pie = go.Figure(
@@ -463,22 +465,40 @@ fig_pie = go.Figure(
         go.Pie(
             labels=alloc["fund"],
             values=alloc["value"],
-            hole=0.5,
-            textinfo="label+percent",
-            textposition="outside"
+
+            hole=0.55,
+
+            # 🔥 limpio y profesional
+            textinfo="percent",
+            textfont=dict(size=18, color="white"),
+
+            # 🔥 hover completo (esto es lo que realmente se usa)
+            hovertemplate="<b>%{label}</b><br>" +
+                          "Valor: %{value:,.0f} €<br>" +
+                          "Peso: %{percent}<extra></extra>",
+
+            sort=False,
+            direction="clockwise",
+            marker=dict(line=dict(color="white", width=2))
         )
     ]
 )
 
 fig_pie.update_layout(
-    title="Distribución de la cartera",
+    title=dict(
+        text="📊 Distribución de la cartera",
+        x=0.5
+    ),
+
     showlegend=False,
 
-    # 🔥 clave para tamaño real visual
-    autosize=True,
-    height=700,
+    height=800,
 
-    margin=dict(l=20, r=20, t=60, b=20)
+    margin=dict(l=20, r=20, t=60, b=20),
+
+    uniformtext=dict(minsize=14, mode="hide"),
+
+    paper_bgcolor="white"
 )
 
 st.plotly_chart(fig_pie, use_container_width=True)
