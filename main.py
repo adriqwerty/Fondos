@@ -451,11 +451,19 @@ fig2.update_layout(
 
 st.plotly_chart(fig2, use_container_width=True)
 
+latest = dense.sort_values("date").groupby("fund").tail(1)
+latest = latest.dropna(subset=["market_value"])
+
+alloc = latest.groupby("fund", as_index=False).agg(
+    value=("market_value", "sum")
+)
+
+
 fig_pie = go.Figure(
     data=[
         go.Pie(
-            labels=alloc["Fondos"],
-            values=alloc["valor_actual"],
+            labels=alloc["fund"],
+            values=alloc["market_value"],
             hole=0.4,  # donut style (más moderno)
             textinfo="label+percent"
         )
