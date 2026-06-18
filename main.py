@@ -217,7 +217,9 @@ st.write(dense)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 
 st.write(dense)
-
+st.write(
+    dense[dense["fund"] == "MSCI World"].tail(30)
+)
 
 
 # =========================
