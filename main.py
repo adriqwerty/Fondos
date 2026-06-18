@@ -264,10 +264,13 @@ daily_units["fund"] = daily_units["isin"].map(isin_to_fund)
 
 # --- 6. MERGE HOLDINGS + VL ---
 merged = hist_df.merge(
-    daily_units[["date", "isin", "fund", "cum_units"]],
+    daily_units[["date", "isin", "cum_units"]],
     on=["date", "isin"],
     how="left"
 )
+
+# reconstruir fund SIEMPRE desde isin (robusto)
+merged["fund"] = merged["isin"].map(isin_to_fund)
 
 merged = merged.sort_values(["isin", "date"])
 
@@ -276,13 +279,11 @@ merged["cum_units"] = merged["cum_units"].fillna(0)
 
 # --- 7. VALOR DE MERCADO ---
 merged["market_value"] = merged["cum_units"] * merged["vl"]
-
 # --- 8. POR FONDO Y DÍA ---
-daily_market = (
-    merged = merged.dropna(subset=["fund", "date"])
-    merged.groupby(["date", "fund"], as_index=False)["market_value"]
-    .sum()
-)
+daily_market = merged.groupby(
+    ["date", "fund"],
+    as_index=False
+)["market_value"].sum()
 
 # --- 9. UNIR CASHFLOW + MARKET ---
 final = daily_market.merge(
