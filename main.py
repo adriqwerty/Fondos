@@ -458,14 +458,14 @@ alloc = latest.groupby("fund", as_index=False).agg(
     value=("market_value", "sum")
 )
 
-
 fig_pie = go.Figure(
     data=[
         go.Pie(
             labels=alloc["fund"],
-            values=alloc["value"],   # 👈 FIX
-            hole=0.4,
-            textinfo="label+percent"
+            values=alloc["value"],
+            hole=0.5,
+            textinfo="label+percent",
+            textposition="outside"
         )
     ]
 )
@@ -473,8 +473,12 @@ fig_pie = go.Figure(
 fig_pie.update_layout(
     title="Distribución de la cartera",
     showlegend=False,
-    height=900,
-    width=1300
+
+    # 🔥 clave para tamaño real visual
+    autosize=True,
+    height=700,
+
+    margin=dict(l=20, r=20, t=60, b=20)
 )
 
 st.plotly_chart(fig_pie, use_container_width=True)
