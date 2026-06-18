@@ -359,7 +359,7 @@ st.dataframe(
     use_container_width=True,
     hide_index=True,
 )
-
+st.write(evolution.columns.tolist())
 portfolio = (
     evolution.groupby("date")
     .agg(
@@ -374,6 +374,7 @@ portfolio["profit"] = (
 )
 
 st.write(portfolio)
+
 fig = go.Figure()
 
 fig.add_scatter(
