@@ -187,6 +187,17 @@ final["order"] = final["fund"].map(orden_dict)
 
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
+final = final.rename(columns={
+    "fund": "Fondo",
+    "invertido": "Invertido",
+    "valor_actual": "Valor actual",
+    "beneficio": "Ganancia",
+    "rentabilidad": "Rentabilidad (%)",
+    "%_1d": "1 día (%)",
+    "%_7d": "7 días (%)",
+    "last_date": "Última actualización"
+})
+
 
 # =========================
 # RESUMEN
@@ -196,13 +207,13 @@ altura_tabla = 35* len(final) +38
 styled = (
     final.style
     .format({
-        "invertido": "{:,.2f} €",
-        "valor_actual": "{:,.2f} €",
-        "beneficio": "{:,.2f} €",
-        "rentabilidad": "{:.2f} %",
-        "%_1d": "{:.2f} %",
-        "%_7d": "{:.2f} %",
-        "last_date": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
+        "Invertido": "{:,.2f} €",
+        "Valor actual": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €",
+        "Rentabilidad (%)": "{:.2f} %",
+        "1 día (%)": "{:.2f} %",
+        "7 días (%)": "{:.2f} %",
+        "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
     })
     .map(
         color_rentabilidad,
@@ -213,16 +224,7 @@ styled = (
         "font-weight": "bold"
     })
 )
-styled = styled.rename(columns={
-    "fund": "Fondo",
-    "invertido": "Invertido",
-    "valor_actual": "Valor actual",
-    "beneficio": "Ganancia",
-    "rentabilidad": "Rentabilidad (%)",
-    "%_1d": "1 día (%)",
-    "%_7d": "7 días (%)",
-    "last_date": "Última actualización"
-})
+
 
 
 st.dataframe(
