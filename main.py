@@ -256,7 +256,7 @@ dense["cum_tot"]=dense["cum_units"]*dense["vl"]
 
 
 st.write(
-    dense[dense["fund"] == "Cobas"].tail(30)
+    dense[dense["fund"] == "MSCI World"].tail(30)
 )
 
 
