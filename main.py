@@ -352,6 +352,7 @@ styled = (
         "font-weight": "bold"
     })
 )
+df_view.df_view.drop("units")
 st.dataframe(
     styled,
     use_container_width=True,
