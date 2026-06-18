@@ -360,11 +360,6 @@ st.dataframe(
 )
 
 
-
-
-
-st.write(dense.columns.tolist())
-
 start_date = pd.Timestamp("2026-05-18")
 dense = dense[dense["date"] >= start_date]
 portfolio = (
@@ -378,11 +373,40 @@ portfolio = (
 
 
 
-portfolio["profit"] = (
-    portfolio["value"] - portfolio["invested"]
+portfolio["profit"] = (portfolio["value"] - portfolio["invested"])
+
+df_view = portfolio.sort_values("date", ascending=False)
+
+df_view = df_view.rename(columns={
+    "date": "Fecha",
+    "invested": "Invertido",
+    "value": "Precio",
+    "profit":"Ganancia",
+})
+
+styled = (
+    portfolio.style
+    .format({
+        "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
+        "Invertido": "{:,.2f} €",
+        "Precio": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €"
+    })
+    .map(
+        color_rentabilidad,
+        subset=["Ganancia"]
+    )
+    .set_properties(**{
+        "text-align": "center",
+        "font-weight": "bold"
+    })
 )
 
-st.write(portfolio)
+st.dataframe(
+    styled,
+    use_container_width=True,
+    hide_index=True,
+)
 
 fig = go.Figure()
 
