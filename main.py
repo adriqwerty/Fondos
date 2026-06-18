@@ -269,7 +269,6 @@ merged = hist_df.merge(
     how="left"
 )
 
-# reconstruir fund SIEMPRE desde isin (robusto)
 merged["fund"] = merged["isin"].map(isin_to_fund)
 
 merged = merged.sort_values(["isin", "date"])
@@ -279,37 +278,53 @@ merged["cum_units"] = merged["cum_units"].fillna(0)
 
 # --- 7. VALOR DE MERCADO ---
 merged["market_value"] = merged["cum_units"] * merged["vl"]
-# --- 8. POR FONDO Y DÍA ---
+
+# --- 8. DAILY MARKET ---
 daily_market = merged.groupby(
     ["date", "fund"],
     as_index=False
 )["market_value"].sum()
 
-# --- 9. UNIR CASHFLOW + MARKET ---
+# --- 9. GRID DIARIO COMPLETO (CLAVE) ---
+all_dates = pd.date_range(
+    merged["date"].min(),
+    pd.Timestamp.today().normalize(),
+    freq="D"
+)
+
+funds = merged["fund"].dropna().unique()
+
+grid = pd.MultiIndex.from_product(
+    [all_dates, funds],
+    names=["date", "fund"]
+).to_frame(index=False)
+
+daily_market = grid.merge(
+    daily_market,
+    on=["date", "fund"],
+    how="left"
+).fillna(0)
+
+# --- 10. CASHFLOW UNIDO ---
 final = daily_market.merge(
     daily_cash[["date", "fund", "cum_invested"]],
     on=["date", "fund"],
     how="left"
 )
 
-# --- 10. PORTFOLIO TOTAL ---
-portfolio = (
-    final.groupby("date")[["market_value", "cum_invested"]]
-    .sum()
-    .reset_index()
-    .sort_values("date")
-)
+final["cum_invested"] = final["cum_invested"].fillna(method="ffill").fillna(0)
+
+# --- 11. PORTFOLIO TOTAL ---
+portfolio = final.groupby("date", as_index=False).agg({
+    "market_value": "sum",
+    "cum_invested": "sum"
+})
 
 portfolio["profit"] = portfolio["market_value"] - portfolio["cum_invested"]
 
-portfolio["return_%"] = (
-    portfolio["profit"] / portfolio["cum_invested"] * 100
-)
-
-# --- 11. LIMPIEZA FINAL ---
+portfolio["return_%"] = portfolio["profit"] / portfolio["cum_invested"] * 100
 portfolio["return_%"] = portfolio["return_%"].fillna(0)
 
-# --- OUTPUT ---
 st.write(portfolio)
 
 
