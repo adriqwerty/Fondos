@@ -279,6 +279,7 @@ merged["market_value"] = merged["cum_units"] * merged["vl"]
 
 # --- 8. POR FONDO Y DÍA ---
 daily_market = (
+    merged = merged.dropna(subset=["fund", "date"])
     merged.groupby(["date", "fund"], as_index=False)["market_value"]
     .sum()
 )
@@ -309,8 +310,6 @@ portfolio["return_%"] = portfolio["return_%"].fillna(0)
 
 # --- OUTPUT ---
 st.write(portfolio)
-
-
 
 
 
