@@ -250,7 +250,7 @@ dense["units"] = dense["units"].fillna(0)
 # 6. acumulado (stock)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
-dense["cum_tot"]=dense["cum_units"]*dense["vl"]
+dense["market_value"]=dense["cum_units"]*dense["vl"]
 
 
 st.write(
