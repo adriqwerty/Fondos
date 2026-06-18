@@ -241,16 +241,41 @@ st.subheader("📄 Detalle aportaciones")
 
 df_view = df.sort_values("date", ascending=False)
 
-st.dataframe(
-    df_view.style.format({
-        "date": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
-        "amount": "{:,.2f} €",
-        "price": "{:,.2f}",
-        "current_price": "{:,.2f}",
-        "valor_actual": "{:,.2f} €",
-        "beneficio": "{:,.2f} €",
-        "rentabilidad": "{:.2f} %"
-    }),
-    use_container_width=True,
-    hide_index=True
+df_view = df_view.rename(columns={
+    "date": "Fecha",
+    "amount": "Invertido",
+    "price": "Precio",
+    "fund":"Fondo",
+    "isin":"ISIN",
+    "current_price": "Precio Actual",
+    "valor_actual": "Valor Actual",
+    "beneficio": "Ganancia",
+    "rentabilidad": "Rentabilidad (%)",
+})
+
+styled = (
+    df_view.style
+    .format({
+        "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
+        "Invertido": "{:,.2f} €",
+        "Precio": "{:,.2f} €",
+        "Precio Actual": "{:,.2f} €",
+        "Valor Actual": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €",
+        "Rentabilidad (%)": "{:.2f} %"
+    })
+    .map(
+        color_rentabilidad,
+        subset=["Ganancia","Rentabilidad (%)"]
+    )
+    .set_properties(**{
+        "text-align": "center",
+        "font-weight": "bold"
+    })
 )
+st.dataframe(
+    styled,
+    use_container_width=True,
+    hide_index=True,
+)
+
