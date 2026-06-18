@@ -403,35 +403,50 @@ st.dataframe(
     hide_index=True,
 )
 
-fig = go.Figure()
+fig1 = go.Figure()
 
-fig.add_trace(go.Scatter(
+fig1.add_trace(go.Scatter(
     x=portfolio["date"],
     y=portfolio["invested"],
     name="Invertido",
     mode="lines"
 ))
 
-fig.add_trace(go.Scatter(
+fig1.add_trace(go.Scatter(
     x=portfolio["date"],
     y=portfolio["value"],
     name="Valor cartera",
     mode="lines"
 ))
 
-fig.add_trace(go.Scatter(
-    x=portfolio["date"],
-    y=portfolio["profit"],
-    name="Beneficio",
-    mode="lines"
-))
-
-fig.update_layout(
-    title="Evolución del portfolio",
+fig1.update_layout(
+    title="Evolución inversión vs mercado",
     xaxis_title="Fecha",
     yaxis_title="€",
     template="plotly_white",
     hovermode="x unified"
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig1, use_container_width=True)
+
+fig2 = go.Figure()
+
+fig2.add_trace(go.Scatter(
+    x=portfolio["date"],
+    y=portfolio["profit"],
+    name="Beneficio",
+    mode="lines",
+    line=dict(color="green")
+))
+
+fig2.add_hline(y=0, line_dash="dash")
+
+fig2.update_layout(
+    title="Evolución del beneficio",
+    xaxis_title="Fecha",
+    yaxis_title="€",
+    template="plotly_white",
+    hovermode="x unified"
+)
+
+st.plotly_chart(fig2, use_container_width=True)
