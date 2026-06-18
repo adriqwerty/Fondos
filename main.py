@@ -112,6 +112,7 @@ df["current_price"] = df["isin"].astype(str).str.strip().map(price_map)
 df["valor_actual"] = (df["amount"] / df["price"]) * df["current_price"]
 df["beneficio"] = df["valor_actual"] - df["amount"]
 df["rentabilidad"] = (df["beneficio"] / df["amount"]) * 100
+df["units"] = df["amount"] / df["price"]
 
 
 # =========================
@@ -191,6 +192,10 @@ daily = (
     .sum()
     .rename(columns={"amount": "invested"})
 )
+daily_units = (
+    df.groupby(["date", "fund"], as_index=False)["units"]
+    .sum()
+)
 
 # 2. calendario completo
 all_dates = pd.date_range(
@@ -206,6 +211,20 @@ grid = pd.MultiIndex.from_product(
     [all_dates, funds],
     names=["date", "fund"]
 ).to_frame(index=False)
+
+units_dense = grid.merge(
+    daily_units,
+    on=["date", "fund"],
+    how="left"
+)
+
+units_dense["units"] = units_dense["units"].fillna(0)
+
+units_dense["cum_units"] = (
+    units_dense.groupby("fund")["units"].cumsum()
+)
+
+
 
 # 4. merge
 dense = grid.merge(daily, on=["date", "fund"], how="left")
