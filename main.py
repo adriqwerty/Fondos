@@ -195,7 +195,7 @@ daily = (
 # 2. calendario completo
 all_dates = pd.date_range(
     df["date"].min(),
-    df["date"].max(),
+    pd.Timestamp.today().normalize(),
     freq="D"
 )
 
