@@ -307,8 +307,6 @@ styled = (
     })
 )
 
-
-final = final.drop(columns=["units"])
 st.dataframe(
     styled,
     use_container_width=True,
