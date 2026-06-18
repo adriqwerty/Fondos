@@ -384,16 +384,33 @@ st.write(portfolio)
 
 fig = go.Figure()
 
-fig.add_scatter(
+fig.add_trace(go.Scatter(
     x=portfolio["date"],
-    y=portfolio["invested"],
-    name="Invertido"
-)
+    y=portfolio["cum_invested"],
+    name="Invertido",
+    mode="lines"
+))
 
-fig.add_scatter(
+fig.add_trace(go.Scatter(
     x=portfolio["date"],
-    y=portfolio["value"],
-    name="Valor cartera"
+    y=portfolio["market_value"],
+    name="Valor cartera",
+    mode="lines"
+))
+
+fig.add_trace(go.Scatter(
+    x=portfolio["date"],
+    y=portfolio["profit"],
+    name="Beneficio",
+    mode="lines"
+))
+
+fig.update_layout(
+    title="Evolución del portfolio",
+    xaxis_title="Fecha",
+    yaxis_title="€",
+    template="plotly_white",
+    hovermode="x unified"
 )
 
 st.plotly_chart(fig, use_container_width=True)
