@@ -386,14 +386,14 @@ fig = go.Figure()
 
 fig.add_trace(go.Scatter(
     x=portfolio["date"],
-    y=portfolio["cum_invested"],
+    y=portfolio["invested"],
     name="Invertido",
     mode="lines"
 ))
 
 fig.add_trace(go.Scatter(
     x=portfolio["date"],
-    y=portfolio["market_value"],
+    y=portfolio["value"],
     name="Valor cartera",
     mode="lines"
 ))
