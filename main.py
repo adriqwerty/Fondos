@@ -376,7 +376,6 @@ portfolio = (
 portfolio["profit"] = (portfolio["value"] - portfolio["invested"])
 
 df_view = portfolio.sort_values("date", ascending=False)
-
 df_view = df_view.rename(columns={
     "date": "Fecha",
     "invested": "Invertido",
@@ -385,7 +384,7 @@ df_view = df_view.rename(columns={
 })
 
 styled = (
-    portfolio.style
+    df_view.style
     .format({
         "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
         "Invertido": "{:,.2f} €",
