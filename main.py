@@ -454,8 +454,8 @@ st.plotly_chart(fig2, use_container_width=True)
 fig_pie = go.Figure(
     data=[
         go.Pie(
-            labels=alloc["fund"],
-            values=alloc["value"],
+            labels=alloc["Fondos"],
+            values=alloc["valor_actual"],
             hole=0.4,  # donut style (más moderno)
             textinfo="label+percent"
         )
