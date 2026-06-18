@@ -472,7 +472,7 @@ fig_pie = go.Figure(
 
 fig_pie.update_layout(
     title="Distribución de la cartera",
-    showlegend=false,
+    showlegend=False,
     height=800,
     width=1200
 )
