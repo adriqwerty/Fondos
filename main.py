@@ -101,6 +101,7 @@ hist_df = hist_df.dropna(subset=["fund"])
 df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
 df["price"] = pd.to_numeric(df["price"], errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
+df["date"] = df["date"].dt.date
 
 df["current_price"] = df["isin"].astype(str).str.strip().map(price_map)
 
