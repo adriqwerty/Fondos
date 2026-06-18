@@ -240,8 +240,6 @@ evolution["vl"] = (
     evolution.groupby("fund")["vl"].ffill()
 )
 
-
-
 # 4. merge
 dense = grid.merge(evolution, on=["date", "fund"], how="left")
 
@@ -359,15 +357,23 @@ st.dataframe(
     use_container_width=True,
     hide_index=True,
 )
+
+
+
+
+
 st.write(evolution.columns.tolist())
 portfolio = (
-    evolution.groupby("date")
+    dense.groupby("date")
     .agg(
         invested=("cum_invested","sum"),
         value=("market_value","sum")
     )
     .reset_index()
 )
+
+
+
 
 portfolio["profit"] = (
     portfolio["value"] - portfolio["invested"]
