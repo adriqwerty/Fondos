@@ -224,19 +224,37 @@ evolution = evolution.merge(
     how="left"
 )
 
-st.write(evolution)
+
+hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
+hist_df = hist_df[["date", "fund", "vl"]]
+
+evolution = evolution.merge(
+    hist_df,
+    on=["date", "fund"],
+    how="left"
+)
+
+evolution = evolution.sort_values(["fund", "date"])
+
+evolution["vl"] = (
+    evolution.groupby("fund")["vl"].ffill()
+)
+
+
+
 # 4. merge
 dense = grid.merge(evolution, on=["date", "fund"], how="left")
-st.write(dense)
+
 # 5. rellenar ceros (correcto para flujo)
 dense["invested"] = dense["invested"].fillna(0)
 dense["units"] = dense["units"].fillna(0)
-st.write(dense)
+
 # 6. acumulado (stock)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
 
-st.write(dense)
+
+
 st.write(
     dense[dense["fund"] == "MSCI World"].tail(30)
 )
