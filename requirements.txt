@@ -3,5 +3,6 @@ pandas
 requests
 beautifulsoup4
 lxml
-openpyxl
+gspread
 plotly
+google.oauth2.service_account
