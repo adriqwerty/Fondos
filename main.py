@@ -230,9 +230,11 @@ dense = grid.merge(evolution, on=["date", "fund"], how="left")
 st.write(dense)
 # 5. rellenar ceros (correcto para flujo)
 dense["invested"] = dense["invested"].fillna(0)
+dense["units"] = dense["units"].fillna(0)
 st.write(dense)
 # 6. acumulado (stock)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
+dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
 
 st.write(dense)
 st.write(
