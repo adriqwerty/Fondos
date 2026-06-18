@@ -178,35 +178,45 @@ metrics_fund = metrics.groupby("fund").agg({
     "%_7d": "mean"
 }).reset_index()
 
-#===================
-#Calculo por fecha
+# ====================
+# CALCULO POR FECHA
+# ====================
 
+# 0. asegurar formato correcto
+df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+
+# 1. aportaciones diarias
+daily = (
+    df.groupby(["date", "fund"], as_index=False)["amount"]
+    .sum()
+    .rename(columns={"amount": "invested"})
+)
+
+# 2. calendario completo
 all_dates = pd.date_range(
     df["date"].min(),
     df["date"].max(),
     freq="D"
 )
-funds = df["fund"].unique()
 
+funds = df["fund"].dropna().unique()
+
+# 3. grid completo
 grid = pd.MultiIndex.from_product(
     [all_dates, funds],
     names=["date", "fund"]
 ).to_frame(index=False)
 
-funds = df["fund"].unique()
-
-grid = pd.MultiIndex.from_product(
-    [all_dates, funds],
-    names=["date", "fund"]
-).to_frame(index=False)
-
+# 4. merge
 dense = grid.merge(daily, on=["date", "fund"], how="left")
 
+# 5. rellenar ceros (correcto para flujo)
 dense["invested"] = dense["invested"].fillna(0)
 
+# 6. acumulado (stock)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 
-print (dense)
+st.write(dense)
 
 
 
