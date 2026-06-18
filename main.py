@@ -360,3 +360,32 @@ st.dataframe(
     hide_index=True,
 )
 
+portfolio = (
+    evolution.groupby("date")
+    .agg(
+        invested=("cum_invested","sum"),
+        value=("market_value","sum")
+    )
+    .reset_index()
+)
+
+portfolio["profit"] = (
+    portfolio["value"] - portfolio["invested"]
+)
+
+st.write(portfolio)
+fig = go.Figure()
+
+fig.add_scatter(
+    x=portfolio["date"],
+    y=portfolio["invested"],
+    name="Invertido"
+)
+
+fig.add_scatter(
+    x=portfolio["date"],
+    y=portfolio["value"],
+    name="Valor cartera"
+)
+
+st.plotly_chart(fig, use_container_width=True)
