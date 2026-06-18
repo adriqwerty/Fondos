@@ -312,7 +312,7 @@ final = daily_market.merge(
     how="left"
 )
 
-final["cum_invested"] = final["cum_invested"].fillna(method="ffill").fillna(0)
+final["cum_invested"] = final["cum_invested"].ffill().fillna(0)
 
 # --- 11. PORTFOLIO TOTAL ---
 portfolio = final.groupby("date", as_index=False).agg({
