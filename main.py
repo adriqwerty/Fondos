@@ -225,7 +225,7 @@ units_dense["cum_units"] = (
 )
 
 
-
+st.write(units_dense)
 # 4. merge
 dense = grid.merge(daily, on=["date", "fund"], how="left")
 st.write(dense)
