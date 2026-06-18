@@ -5,4 +5,4 @@ beautifulsoup4
 lxml
 gspread
 plotly
-google.oauth2.service_account
+
