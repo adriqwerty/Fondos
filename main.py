@@ -254,10 +254,6 @@ dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
 dense["market_value"]=dense["cum_units"]*dense["vl"]
 
 
-st.write(
-    dense[dense["fund"] == "MSCI World"].tail(30)
-)
-
 
 # =========================
 # FINAL
@@ -400,7 +396,7 @@ styled = (
         "font-weight": "bold"
     })
 )
-
+st.subheader("📊 Evolución Inversión")
 st.dataframe(
     styled,
     use_container_width=True,
