@@ -199,6 +199,96 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
+# =========================
+# PORTFOLIO: APORTADO vs VALOR REAL
+# =========================
+
+# --- Preparación ---
+df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+df["price"] = pd.to_numeric(df["price"], errors="coerce")
+
+df["units"] = df["amount"] / df["price"]
+
+df = df.sort_values("date")
+
+# --- 1. APORTADO ACUMULADO POR FONDO ---
+daily_invested = (
+    df.groupby(["date", "fund"])["amount"]
+    .sum()
+    .reset_index()
+    .sort_values("date")
+)
+
+daily_invested["cum_invested"] = (
+    daily_invested.groupby("fund")["amount"].cumsum()
+)
+
+# --- 2. UNIDADES ACUMULADAS ---
+df["cum_units"] = df.groupby("isin")["units"].cumsum()
+
+# --- 3. HISTÓRICO VL ---
+hist_df["date"] = pd.to_datetime(hist_df["date"], errors="coerce").dt.normalize()
+hist_df["vl"] = pd.to_numeric(hist_df["vl"], errors="coerce")
+
+hist_df = hist_df.sort_values(["isin", "date"])
+
+# --- 4. MERGE VL + POSICIONES ---
+merged = hist_df.merge(
+    df[["isin", "date", "cum_units"]],
+    on="isin",
+    how="left"
+)
+
+merged = merged.sort_values(["isin", "date"])
+
+# forward fill unidades (clave)
+merged["cum_units"] = merged.groupby("isin")["cum_units"].ffill()
+
+# --- 5. VALOR DIARIO ---
+merged["value"] = merged["vl"] * merged["cum_units"]
+
+daily_value = (
+    merged.groupby(["date", "fund"])["value"]
+    .sum()
+    .reset_index()
+)
+
+# --- 6. COMBINAR COSTE VS VALOR ---
+final_df = daily_value.merge(
+    daily_invested[["date", "fund", "cum_invested"]],
+    on=["date", "fund"],
+    how="left"
+)
+
+# --- 7. PORTFOLIO TOTAL ---
+portfolio = (
+    final_df.groupby("date")[["value", "cum_invested"]]
+    .sum()
+    .reset_index()
+    .sort_values("date")
+)
+
+portfolio["profit"] = portfolio["value"] - portfolio["cum_invested"]
+
+portfolio["return_%"] = (
+    portfolio["profit"] / portfolio["cum_invested"] * 100
+)
+
+# --- 8. OUTPUT LIMPIO (OPCIONAL DEBUG) ---
+print (portfolio)
+
+
+
+
+
+
+
+
+
+
+
+
 
 # =========================
 # RESUMEN
