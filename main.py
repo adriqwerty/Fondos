@@ -9,8 +9,7 @@ import streamlit as st
 
 
 st.set_page_config(page_title="Dashboard Fondos2", layout="wide")
-=======
-st.set_page_config(page_title="Dashboard Fondos", layout="wide")
+
 
 st.title("📊 Dashboard de Fondos")
 
