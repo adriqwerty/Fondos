@@ -364,6 +364,9 @@ st.dataframe(
 
 
 st.write(dense.columns.tolist())
+
+start_date = pd.Timestamp("2026-05-18")
+dense = dense[dense["date"] >= start_date]
 portfolio = (
     dense.groupby("date", as_index=False)
     .agg(
@@ -372,9 +375,6 @@ portfolio = (
     )
     .sort_values("date")
 )
-
-
-
 
 
 
