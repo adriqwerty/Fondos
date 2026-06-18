@@ -483,11 +483,28 @@ fig_pie = go.Figure(
     ]
 )
 
-fig_pie.update_layout(
-    title=dict(text="📊 Distribución de la cartera", x=0.5),
-    showlegend=False,
-    height=800,
-    margin=dict(l=20, r=20, t=60, b=20)
+fig_pie = go.Figure(
+    data=[
+        go.Pie(
+            labels=alloc["fund"],
+            values=alloc["value"],
+            hole=0.55,
+
+            textinfo="label+percent",
+            textposition="inside",
+
+            # 🔥 texto adaptativo visual (clave)
+            insidetextfont=dict(size=14, color="white"),
+
+            hovertemplate="<b>%{label}</b><br>"
+                          "Valor: %{value:,.0f} €<br>"
+                          "Peso: %{percent}<extra></extra>",
+
+            marker=dict(
+                line=dict(color="white", width=2)
+            )
+        )
+    ]
 )
 
 st.plotly_chart(fig_pie, use_container_width=True)
