@@ -199,7 +199,7 @@ styled = (
         "%_7d": "{:.2f} %",
         "last_date": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
     })
-    .applymap(
+    .map(
         color_rentabilidad,
         subset=["rentabilidad", "%_1d", "%_7d", "beneficio"]
     )
