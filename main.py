@@ -362,7 +362,7 @@ st.dataframe(
 
 
 
-st.write(evolution.columns.tolist())
+st.write(dense.columns.tolist())
 portfolio = (
     dense.groupby("date")
     .agg(
