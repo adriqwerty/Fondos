@@ -365,13 +365,15 @@ st.dataframe(
 
 st.write(dense.columns.tolist())
 portfolio = (
-    dense.groupby("date")
+    dense.groupby("date", as_index=False)
     .agg(
-        invested=("cum_invested","sum"),
-        value=("market_value","sum")
+        invested=("cum_invested", "sum"),
+        value=("market_value", "sum")
     )
-    .reset_index()
+    .sort_values("date")
 )
+
+
 
 
 
