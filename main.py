@@ -187,7 +187,7 @@ metrics_fund = metrics.groupby("fund").agg({
 df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
 
 # 1. aportaciones diarias
-daily = (
+daily_cash = (
     df.groupby(["date", "fund"], as_index=False)["amount"]
     .sum()
     .rename(columns={"amount": "invested"})
@@ -212,22 +212,21 @@ grid = pd.MultiIndex.from_product(
     names=["date", "fund"]
 ).to_frame(index=False)
 
-units_dense = grid.merge(
+evolution = grid.merge(
+    daily_cash,
+    on=["date", "fund"],
+    how="left"
+)
+
+evolution = evolution.merge(
     daily_units,
     on=["date", "fund"],
     how="left"
 )
 
-units_dense["units"] = units_dense["units"].fillna(0)
-
-units_dense["cum_units"] = (
-    units_dense.groupby("fund")["units"].cumsum()
-)
-
-
-st.write(units_dense)
+st.write(evolution)
 # 4. merge
-dense = grid.merge(daily, on=["date", "fund"], how="left")
+dense = grid.merge(evolution, on=["date", "fund"], how="left")
 st.write(dense)
 # 5. rellenar ceros (correcto para flujo)
 dense["invested"] = dense["invested"].fillna(0)
