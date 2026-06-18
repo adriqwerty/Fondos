@@ -19,10 +19,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 @st.cache_resource
 def connect_gsheets():
     creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
+        st.secrets["gcp_service_account"],
+        scopes=SCOPES
     )
-
-    gc = gspread.authorize(creds)
     return gspread.authorize(creds)
 
 client = connect_gsheets()
