@@ -450,3 +450,20 @@ fig2.update_layout(
 )
 
 st.plotly_chart(fig2, use_container_width=True)
+
+fig_pie = go.Figure(
+    data=[
+        go.Pie(
+            labels=alloc["fund"],
+            values=alloc["value"],
+            hole=0.4,  # donut style (más moderno)
+            textinfo="label+percent"
+        )
+    ]
+)
+
+fig_pie.update_layout(
+    title="Distribución de la cartera",
+)
+
+st.plotly_chart(fig_pie, use_container_width=True)
