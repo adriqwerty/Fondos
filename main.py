@@ -243,6 +243,7 @@ df_view = df.sort_values("date", ascending=False)
 
 st.dataframe(
     df_view.style.format({
+        "date": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
         "amount": "{:,.2f} €",
         "price": "{:,.2f}",
         "current_price": "{:,.2f}",
