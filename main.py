@@ -279,7 +279,25 @@ final = final.rename(columns={
     "%_30d": "1 mes (%)",
     "last_date": "Última actualización"
 })
+# =========================
+# RESUMEN TOTAL CARTERA
+# =========================
 
+invertido_total = final["Invertido"].sum()
+valor_total = final["Valor actual"].sum()
+ganancia_total = final["Ganancia"].sum()
+
+rentabilidad_total = (
+    ganancia_total / invertido_total * 100
+    if invertido_total > 0 else 0
+)
+
+resumen_total = pd.DataFrame([{
+    "Invertido": invertido_total,
+    "Valor actual": valor_total,
+    "Ganancia": ganancia_total,
+    "Rentabilidad (%)": rentabilidad_total
+}])
 st.subheader("💼 Resumen Total")
 
 styled_total = (
