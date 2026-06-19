@@ -18,13 +18,15 @@ st.sidebar.title("👤 Selección de cartera")
 
 usuario = st.sidebar.selectbox(
     "Elige cartera",
-    ["Adrian", "Oscar"]
+    ["Adrian", "Oscar", "Arancha"]
 )
 SHEETS_MAP = {
     "Adrian": {
         "aportaciones": "Aportaciones_A"},
     "Oscar": {
-        "aportaciones": "Aportaciones_B"}
+        "aportaciones": "Aportaciones_B",
+    "Arancha": {
+        "aportaciones": "Aportaciones_C"}
 }
 
 cfg = SHEETS_MAP[usuario]
