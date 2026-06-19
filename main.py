@@ -329,7 +329,7 @@ resumen_total = pd.DataFrame([{
 # 🎨 ESTILO + STREAMLIT
 # =========================
 
-st.subheader("💼 Resumen Total")
+st.subheader("📊 Resumen Total")
 
 styled_total = (
     resumen_total.style
