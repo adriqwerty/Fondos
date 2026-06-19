@@ -299,10 +299,23 @@ portfolio = (
 # 2. Ganancia diaria
 portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
 
-# 3. Rentabilidades (evitando errores)
-portfolio["1d (%)"] = portfolio["valor"].pct_change(1) * 100
 portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
+
+portfolio = portfolio.sort_values("date").dropna(subset=["valor"])
+
+if len(portfolio) >= 2:
+    last_value = portfolio["valor"].iloc[-1]
+    prev_value = portfolio["valor"].iloc[-2]
+
+    portfolio["1d (%)"] = ((last_value - prev_value) / prev_value) * 100
+else:
+    portfolio["1d (%)"] = None
+
+
+
+
+
 
 # 4. Último dato (resumen final)
 last = portfolio.iloc[-1]
@@ -354,7 +367,6 @@ st.dataframe(
     styled_total,
     use_container_width=True,
     hide_index=True,
-    height=100
 )
 
 
