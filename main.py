@@ -20,6 +20,13 @@ usuario = st.sidebar.selectbox(
     "Elige cartera",
     ["Adrian", "Oscar"]
 )
+SHEETS_MAP = {
+    "Adrian": {
+        "aportaciones": "Aportaciones_A"},
+    "Oscar": {
+        "aportaciones": "Aportaciones_B"}
+}
+
 cfg = SHEETS_MAP[usuario]
 # =========================
 # CONEXIÓN GOOGLE SHEETS
@@ -34,12 +41,7 @@ def connect_gsheets():
 
 client = connect_gsheets()
 
-SHEETS_MAP = {
-    "Adrian": {
-        "aportaciones": "Aportaciones_A"},
-    "Oscar": {
-        "aportaciones": "Aportaciones_B"}
-}
+
 
 # =========================
 # LOAD APORTACIONES
