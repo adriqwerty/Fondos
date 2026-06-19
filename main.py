@@ -9,10 +9,10 @@ import plotly.graph_objects as go
 # =========================
 
 
-st.set_page_config(page_title="Inversiones 2", layout="wide")
+st.set_page_config(page_title="Inversiones", layout="wide")
 
 
-st.title("📊 Dashboard de Fondos")
+st.markdown("<h1 style='text-align: center; color: #2c3e50; font-size: 36px;'>💼 Evolución de la Inversión</h1>", unsafe_allow_html=True)
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
