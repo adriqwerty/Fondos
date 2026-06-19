@@ -312,16 +312,15 @@ st.dataframe(
 
 
 st.subheader("📄 Detalle aportaciones")
-# Filtro por fondo
-fondos_disponibles = sorted(df["fund"].dropna().unique())
-
-fondos_seleccionados = st.multiselect(
-    "Filtrar por fondo",
-    options=fondos_disponibles,
-    default=fondos_disponibles
+fondo = st.selectbox(
+    "Selecciona un fondo",
+    ["Todos"] + sorted(df["fund"].dropna().unique().tolist())
 )
 
-df_filtrado = df[df["fund"].isin(fondos_seleccionados)]
+if fondo != "Todos":
+    df_filtrado = df[df["fund"] == fondo]
+else:
+    df_filtrado = df.copy()
 
 df_view = df_filtrado.sort_values("date", ascending=False)
 
