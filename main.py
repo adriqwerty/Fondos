@@ -312,6 +312,7 @@ st.dataframe(
 
 
 st.subheader("📄 Detalle aportaciones")
+
 fondo = st.selectbox(
     "Selecciona un fondo",
     ["Todos"] + sorted(df["fund"].dropna().unique().tolist())
@@ -322,9 +323,9 @@ if fondo != "Todos":
 else:
     df_filtrado = df.copy()
 
+
 df_view = df_filtrado.sort_values("date", ascending=False)
 
-df_view = df.sort_values("date", ascending=False)
 
 df_view = df_view.rename(columns={
     "date": "Fecha",
