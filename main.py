@@ -308,27 +308,7 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 # % cambios estándar (ya alineados con pandas)
 portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
-
-
-# =========================
-# 1 DÍA BIEN HECHO (último distinto)
-# =========================
-
-last_value = portfolio["value"].iloc[-1]
-
-prev_value = None
-for v in reversed(portfolio["value"].iloc[:-1].values):
-    if not pd.isna(v) and v != last_value:
-        prev_value = v
-        break
-
-if prev_value is None:
-    one_day = None
-else:
-    one_day = ((last_value - prev_value) / prev_value) * 100
-
-portfolio["1d (%)"] = None
-portfolio.loc[portfolio.index[-1], "1d (%)"] = one_day
+portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 
 st.write(portfolio)
 # =========================
