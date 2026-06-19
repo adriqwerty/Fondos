@@ -309,7 +309,7 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 last_value = portfolio["value"].iloc[-2]
 prev_value = portfolio["value"].iloc[-3]
 
-portfolio["1d (%)"] =((prev_value-last_value)/prev_value)*100
+portfolio["1d (%)"] =((last_value-prev_value)/last_value)*100
 portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
 st.write(last_value)
