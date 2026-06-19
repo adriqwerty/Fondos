@@ -17,11 +17,12 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 import streamlit as st
 from actualizar_valores import actualizar_valores
 
-if st.button("🔄 Actualizar valores"):
-    with st.spinner("Actualizando datos..."):
-        actualizar_valores()
-    st.success("Datos actualizados")
+st.sidebar.header("⚙️ Mantenimiento")
 
+if st.sidebar.button("🔄 Forzar actualización"):
+    with st.spinner("Conectando con FT y Google Sheets..."):
+        actualizar_valores()
+    st.sidebar.success("Datos actualizados correctamente")
 
 
 
