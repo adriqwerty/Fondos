@@ -305,17 +305,11 @@ portfolio = portfolio[portfolio["value"] > 0]
 # ganancia
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 
-# % cambios estándar (ya alineados con pandas)
-last_value = portfolio["value"].iloc[-2]
-prev_value = portfolio["value"].iloc[-3]
 
 portfolio["1d (%)"] =portfolio["value"].pct_change(1) * 100
 portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
-st.write(last_value)
-st.write(prev_value)
 
-st.write(portfolio)
 # =========================
 # RESUMEN FINAL
 # =========================
