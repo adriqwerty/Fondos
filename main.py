@@ -303,7 +303,7 @@ styled = (
     })
     .map(
         color_rentabilidad,
-        subset=["Ganancia", "1 día (%)", "7 días (%)", "Rentabilidad (%)"]
+        subset=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)","Rentabilidad (%)"]
     )
     .set_properties(**{
         "text-align": "center",
