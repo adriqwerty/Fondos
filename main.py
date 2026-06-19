@@ -20,7 +20,7 @@ usuario = st.sidebar.selectbox(
     "Elige cartera",
     ["Adrian", "Oscar"]
 )
-
+cfg = SHEETS_MAP[usuario]
 # =========================
 # CONEXIÓN GOOGLE SHEETS
 # =========================
