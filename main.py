@@ -10,8 +10,6 @@ import plotly.graph_objects as go
 
 
 st.set_page_config(page_title="Inversiones", layout="wide")
-
-
 st.markdown("<h1 style='text-align: center; color: #2c3e50; font-size: 36px;'>💼 Evolución de la Inversión</h1>", unsafe_allow_html=True)
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -259,6 +257,103 @@ dense["units"] = dense["units"].fillna(0)
 dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
 dense["market_value"]=dense["cum_units"]*dense["vl"]
+
+# =========================
+# RESUMEN TOTAL CARTERA
+# =========================
+
+invertido_total = final["Invertido"].sum()
+valor_total = final["Valor actual"].sum()
+ganancia_total = final["Ganancia"].sum()
+
+rentabilidad_total = (
+    ganancia_total / invertido_total * 100
+    if invertido_total > 0 else 0
+)
+
+dia_total = (
+    (final["Valor actual"] * final["1 día (%)"] / 100).sum()
+    / valor_total * 100
+)
+
+semana_total = (
+    (final["Valor actual"] * final["7 días (%)"] / 100).sum()
+    / valor_total * 100
+)
+
+mes_total = (
+    (final["Valor actual"] * final["1 mes (%)"] / 100).sum()
+    / valor_total * 100
+)
+
+ultima_actualizacion = final["Última actualización"].max()
+
+resumen_total = pd.DataFrame([{
+    "Fondo": "TOTAL CARTERA",
+    "Invertido": invertido_total,
+    "Valor actual": valor_total,
+    "Ganancia": ganancia_total,
+    "Rentabilidad (%)": rentabilidad_total,
+    "1 día (%)": dia_total,
+    "7 días (%)": semana_total,
+    "1 mes (%)": mes_total,
+    "Última actualización": ultima_actualizacion
+}])
+st.subheader("💼 Resumen Total")
+
+styled_total = (
+    resumen_total.style
+    .format({
+        "Invertido": "{:,.2f} €",
+        "Valor actual": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €",
+        "Rentabilidad (%)": "{:.2f} %",
+        "1 día (%)": "{:.2f} %",
+        "7 días (%)": "{:.2f} %",
+        "1 mes (%)": "{:.2f} %",
+        "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
+    })
+    .map(
+        color_rentabilidad,
+        subset=[
+            "Ganancia",
+            "Rentabilidad (%)",
+            "1 día (%)",
+            "7 días (%)",
+            "1 mes (%)"
+        ]
+    )
+    .set_properties(**{
+        "text-align": "center",
+        "font-weight": "bold"
+    })
+)
+
+st.dataframe(
+    styled_total,
+    use_container_width=True,
+    hide_index=True,
+    height=75
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
