@@ -312,6 +312,18 @@ st.dataframe(
 
 
 st.subheader("📄 Detalle aportaciones")
+# Filtro por fondo
+fondos_disponibles = sorted(df["fund"].dropna().unique())
+
+fondos_seleccionados = st.multiselect(
+    "Filtrar por fondo",
+    options=fondos_disponibles,
+    default=fondos_disponibles
+)
+
+df_filtrado = df[df["fund"].isin(fondos_seleccionados)]
+
+df_view = df_filtrado.sort_values("date", ascending=False)
 
 df_view = df.sort_values("date", ascending=False)
 
