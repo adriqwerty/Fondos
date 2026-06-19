@@ -284,28 +284,68 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
-# 2. Ganancia diaria
-portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
+# =========================
+# PORTFOLIO
+# =========================
 
-portfolio = portfolio.sort_values("date").reset_index(drop=True)
+portfolio = (
+    dense.groupby("date", as_index=False)
+    .agg(
+        invested=("cum_invested", "sum"),
+        value=("market_value", "sum")
+    )
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
-portfolio = portfolio.dropna(subset=["valor"])
-portfolio = portfolio[portfolio["valor"] > 0]
+# limpiar datos inválidos
+portfolio = portfolio.dropna(subset=["value"])
+portfolio = portfolio[portfolio["value"] > 0]
 
-portfolio["1d (%)"] = portfolio["valor"].pct_change(1) * 100
-portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
-portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
+# ganancia
+portfolio["profit"] = portfolio["value"] - portfolio["invested"]
+
+# % cambios estándar (ya alineados con pandas)
+portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
+portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
+
+
+# =========================
+# 1 DÍA BIEN HECHO (último distinto)
+# =========================
+
+last_value = portfolio["value"].iloc[-1]
+
+prev_value = None
+for v in reversed(portfolio["value"].iloc[:-1].values):
+    if not pd.isna(v) and v != last_value:
+        prev_value = v
+        break
+
+if prev_value is None:
+    one_day = None
+else:
+    one_day = ((last_value - prev_value) / prev_value) * 100
+
+portfolio["1d (%)"] = None
+portfolio.loc[portfolio.index[-1], "1d (%)"] = one_day
+
+
+# =========================
+# RESUMEN FINAL
+# =========================
+
+last = portfolio.iloc[-1]
 
 resumen_total = pd.DataFrame([{
-    "Invertido": last["invertido"],
-    "Valor actual": last["valor"],
-    "Ganancia": last["ganancia"],
-    "Rentabilidad (%)": (last["ganancia"] / last["invertido"]) * 100 if last["invertido"] else 0,
+    "Invertido": last["invested"],
+    "Valor actual": last["value"],
+    "Ganancia": last["profit"],
+    "Rentabilidad (%)": (last["profit"] / last["invested"]) * 100 if last["invested"] else 0,
     "1 día (%)": last["1d (%)"],
     "7 días (%)": last["7d (%)"],
     "1 mes (%)": last["1m (%)"]
 }])
-
 # =========================
 # 🎨 ESTILO + STREAMLIT
 # =========================
