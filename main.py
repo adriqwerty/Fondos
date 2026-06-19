@@ -313,7 +313,82 @@ st.dataframe(
     hide_index=True,
     height=altura_tabla
 )
+# =========================
+# 📊 RESUMEN GLOBAL CARTERA
+# =========================
 
+import numpy as np
+
+# 1. Agrupar cartera total diaria
+portfolio = (
+    dense.groupby("date", as_index=False)
+    .agg(
+        invertido=("cum_invested", "sum"),
+        valor=("market_value", "sum")
+    )
+    .sort_values("date")
+)
+
+# 2. Ganancia diaria
+portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
+
+# 3. Rentabilidades (evitando errores)
+portfolio["1d (%)"] = portfolio["valor"].pct_change(1) * 100
+portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
+portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
+
+# 4. Último dato (resumen final)
+last = portfolio.iloc[-1]
+
+resumen_total = pd.DataFrame([{
+    "Invertido": last["invertido"],
+    "Valor actual": last["valor"],
+    "Ganancia": last["ganancia"],
+    "Rentabilidad (%)": (last["ganancia"] / last["invertido"]) * 100 if last["invertido"] else 0,
+    "1 día (%)": last["1d (%)"],
+    "7 días (%)": last["7d (%)"],
+    "1 mes (%)": last["1m (%)"]
+}])
+
+# =========================
+# 🎨 ESTILO + STREAMLIT
+# =========================
+
+st.subheader("💼 Resumen Total")
+
+styled_total = (
+    resumen_total.style
+    .format({
+        "Invertido": "{:,.2f} €",
+        "Valor actual": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €",
+        "Rentabilidad (%)": "{:.2f} %",
+        "1 día (%)": "{:.2f} %",
+        "7 días (%)": "{:.2f} %",
+        "1 mes (%)": "{:.2f} %"
+    })
+    .map(
+        color_rentabilidad,
+        subset=[
+            "Ganancia",
+            "Rentabilidad (%)",
+            "1 día (%)",
+            "7 días (%)",
+            "1 mes (%)"
+        ]
+    )
+    .set_properties(**{
+        "text-align": "center",
+        "font-weight": "bold"
+    })
+)
+
+st.dataframe(
+    styled_total,
+    use_container_width=True,
+    hide_index=True,
+    height=100
+)
 
 
 st.subheader("📄 Detalle aportaciones")
