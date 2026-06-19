@@ -14,6 +14,18 @@ st.markdown("<h1 style='text-align: center; color: #2c3e50; font-size: 36px;'>�
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
+import streamlit as st
+from actualizar_valores import actualizar_valores
+
+if st.button("🔄 Actualizar valores"):
+    with st.spinner("Actualizando datos..."):
+        actualizar_valores()
+    st.success("Datos actualizados")
+
+
+
+
+
 st.sidebar.title("👤 Selección de cartera")
 
 usuario = st.sidebar.selectbox(
