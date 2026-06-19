@@ -20,7 +20,7 @@ usuario = st.sidebar.selectbox(
     "Elige cartera",
     ["Adrian", "Oscar"]
 )
-df = load_aportaciones(cfg["aportaciones"])
+
 # =========================
 # CONEXIÓN GOOGLE SHEETS
 # =========================
@@ -105,7 +105,7 @@ def bold_columns(df):
 # =========================
 # CARGA DATOS
 # =========================
-df = load_aportaciones()
+df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
 
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
