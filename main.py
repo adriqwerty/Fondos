@@ -306,23 +306,11 @@ portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
 portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
 
-portfolio = portfolio.sort_values("date").reset_index(drop=True)
-
-last_value = portfolio.iloc[-1]["valor"]
-
-# buscar último valor DIFERENTE al actual
-prev_value = None
-
-for v in reversed(portfolio["valor"].iloc[:-1].values):
-    if not np.isclose(v, last_value):
-        prev_value = v
-        break
-
+last = portfolio.iloc[-1]
+prev = portfolio.iloc[-2]
 
 portfolio["1d (%)"] = (
-    ((last_value - prev_value) / last_value) * 100
-    if prev_value is not None and last_value != 0
-    else None
+    (last["value"] - prev["value"]) / prev["value"] * 100
 )
 
 st.write(portfolio)
