@@ -1,4 +1,3 @@
-
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
@@ -8,7 +7,6 @@ import plotly.graph_objects as go
 # =========================
 # CONFIG
 # =========================
-
 
 st.set_page_config(page_title="Inversiones", layout="wide")
 st.markdown("<h1 style='text-align: center; color: #2c3e50; font-size: 36px;'>💼 Evolución de la Inversión</h1>", unsafe_allow_html=True)
@@ -51,6 +49,7 @@ fondos = fondos.sort_values("orden")
 orden_fondos = fondos["fondo"].tolist()
 orden_dict = dict(zip(fondos["fondo"], fondos["orden"]))
 
+
 # =========================
 # LOAD HISTÓRICO VL
 # =========================
@@ -72,6 +71,7 @@ def load_prices():
 
     return dict(zip(latest["isin"], latest["vl"])), df
 
+
 def color_rentabilidad(val):
         try:
             val = float(val)
@@ -82,11 +82,13 @@ def color_rentabilidad(val):
         except:
             pass
         return "color: black"
+
 def bold_columns(df):
     return pd.DataFrame(
         [["font-weight: bold" for _ in df.columns] for _ in range(len(df))],
         columns=df.columns
     )
+
 # =========================
 # CARGA DATOS
 # =========================
@@ -95,6 +97,7 @@ price_map, hist_df = load_prices()
 
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
+
 # =========================
 # NORMALIZACIÓN
 # =========================
@@ -285,51 +288,38 @@ final = final.rename(columns={
 # 📊 RESUMEN GLOBAL CARTERA
 # =========================
 
-import numpy as np
+portfolio = portfolio.sort_values("date").reset_index(drop=True)
 
-# 1. Agrupar cartera total diaria
-portfolio = (
-    dense.groupby("date", as_index=False)
-    .agg(
-        invertido=("cum_invested", "sum"),
-        valor=("market_value", "sum")
-    )
-    .sort_values("date")
-)
+portfolio = portfolio.dropna(subset=["valor", "invertido"])
 
-# 2. Ganancia diaria
-portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
-
-portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
-portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
-
-portfolio = portfolio.sort_values("date").dropna(subset=["valor"])
-
-if len(portfolio) >= 2:
-    last_value = portfolio["valor"].iloc[-1]
-    prev_value = portfolio["valor"].iloc[-2]
-
-    portfolio["1d (%)"] = ((last_value - prev_value) / prev_value) * 100
-else:
-    portfolio["1d (%)"] = None
-
-
-
-
-
-
-# 4. Último dato (resumen final)
 last = portfolio.iloc[-1]
+
+def get_prev_value(days):
+    target_date = last["date"] - pd.Timedelta(days=days)
+    past = portfolio[portfolio["date"] <= target_date]
+    return past.iloc[-1]["valor"] if not past.empty else None
+
+def safe_pct(current, past):
+    if past is None or past == 0:
+        return None
+    return ((current - past) / past) * 100
+
+v_now = last["valor"]
+
+v_1d = portfolio.iloc[-2]["valor"] if len(portfolio) >= 2 else None
+v_7d = get_prev_value(7)
+v_30d = get_prev_value(30)
 
 resumen_total = pd.DataFrame([{
     "Invertido": last["invertido"],
     "Valor actual": last["valor"],
-    "Ganancia": last["ganancia"],
-    "Rentabilidad (%)": (last["ganancia"] / last["invertido"]) * 100 if last["invertido"] else 0,
-    "1 día (%)": last["1d (%)"],
-    "7 días (%)": last["7d (%)"],
-    "1 mes (%)": last["1m (%)"]
+    "Ganancia": last["valor"] - last["invertido"],
+    "Rentabilidad (%)": safe_pct(last["valor"], last["invertido"]),
+    "1 día (%)": safe_pct(v_now, v_1d),
+    "7 días (%)": safe_pct(v_now, v_7d),
+    "1 mes (%)": safe_pct(v_now, v_30d)
 }])
+
 
 # =========================
 # 🎨 ESTILO + STREAMLIT
