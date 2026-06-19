@@ -306,16 +306,13 @@ portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
 portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
 
-last = portfolio.iloc[-1]
-prev = portfolio.iloc[-2]
+if len(portfolio) > 1:
+    last = portfolio["valor"].iloc[-1]
+    prev = portfolio["valor"].iloc[-2]
 
-portfolio["1d (%)"] = (
-    (last["value"] - prev["value"]) / prev["value"] * 100
-)
-
-st.write(portfolio)
-# 4. Último dato (resumen final)
-last = portfolio.iloc[-1]
+    portfolio["1d (%)"] = ((last - prev) / prev) * 100
+else:
+    portfolio["1d (%)"] = None
 
 resumen_total = pd.DataFrame([{
     "Invertido": last["invertido"],
