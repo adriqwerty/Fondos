@@ -330,7 +330,7 @@ else:
 portfolio["1d (%)"] = None
 portfolio.loc[portfolio.index[-1], "1d (%)"] = one_day
 
-
+st.write(portfolio)
 # =========================
 # RESUMEN FINAL
 # =========================
