@@ -284,22 +284,6 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
-# =========================
-# 📊 RESUMEN GLOBAL CARTERA
-# =========================
-
-import numpy as np
-
-# 1. Agrupar cartera total diaria
-portfolio = (
-    dense.groupby("date", as_index=False)
-    .agg(
-        invertido=("cum_invested", "sum"),
-        valor=("market_value", "sum")
-    )
-    .sort_values("date")
-)
-
 # 2. Ganancia diaria
 portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
 
