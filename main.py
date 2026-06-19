@@ -279,66 +279,6 @@ final = final.rename(columns={
     "%_30d": "1 mes (%)",
     "last_date": "Última actualización"
 })
-# =========================
-# RESUMEN TOTAL CARTERA
-# =========================
-
-invertido_total = final["Invertido"].sum()
-valor_total = final["Valor actual"].sum()
-ganancia_total = final["Ganancia"].sum()
-
-rentabilidad_total = (
-    ganancia_total / invertido_total * 100
-    if invertido_total > 0 else 0
-)
-
-resumen_total = pd.DataFrame([{
-    "Invertido": invertido_total,
-    "Valor actual": valor_total,
-    "Ganancia": ganancia_total,
-    "Rentabilidad (%)": rentabilidad_total
-}])
-st.subheader("💼 Resumen Total")
-
-styled_total = (
-    resumen_total.style
-    .format({
-        "Invertido": "{:,.2f} €",
-        "Valor actual": "{:,.2f} €",
-        "Ganancia": "{:,.2f} €",
-        "Rentabilidad (%)": "{:.2f} %",
-        "1 día (%)": "{:.2f} %",
-        "7 días (%)": "{:.2f} %",
-        "1 mes (%)": "{:.2f} %",
-        "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
-    })
-    .map(
-        color_rentabilidad,
-        subset=[
-            "Ganancia",
-            "Rentabilidad (%)",
-            "1 día (%)",
-            "7 días (%)",
-            "1 mes (%)"
-        ]
-    )
-    .set_properties(**{
-        "text-align": "center",
-        "font-weight": "bold"
-    })
-)
-
-st.dataframe(
-    styled_total,
-    use_container_width=True,
-    hide_index=True,
-    height=75
-)
-
-
-
-
-
 
 # =========================
 # RESUMEN
