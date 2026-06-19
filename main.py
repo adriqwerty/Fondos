@@ -258,47 +258,6 @@ dense["cum_invested"] = dense.groupby("fund")["invested"].cumsum()
 dense["cum_units"] = dense.groupby("fund")["units"].cumsum()
 dense["market_value"]=dense["cum_units"]*dense["vl"]
 
-# =========================
-# RESUMEN TOTAL CARTERA
-# =========================
-
-invertido_total = final["Invertido"].sum()
-valor_total = final["Valor actual"].sum()
-ganancia_total = final["Ganancia"].sum()
-
-rentabilidad_total = (
-    ganancia_total / invertido_total * 100
-    if invertido_total > 0 else 0
-)
-
-dia_total = (
-    (final["Valor actual"] * final["1 día (%)"] / 100).sum()
-    / valor_total * 100
-)
-
-semana_total = (
-    (final["Valor actual"] * final["7 días (%)"] / 100).sum()
-    / valor_total * 100
-)
-
-mes_total = (
-    (final["Valor actual"] * final["1 mes (%)"] / 100).sum()
-    / valor_total * 100
-)
-
-ultima_actualizacion = final["Última actualización"].max()
-
-resumen_total = pd.DataFrame([{
-    "Fondo": "TOTAL CARTERA",
-    "Invertido": invertido_total,
-    "Valor actual": valor_total,
-    "Ganancia": ganancia_total,
-    "Rentabilidad (%)": rentabilidad_total,
-    "1 día (%)": dia_total,
-    "7 días (%)": semana_total,
-    "1 mes (%)": mes_total,
-    "Última actualización": ultima_actualizacion
-}])
 
 # =========================
 # FINAL
