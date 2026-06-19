@@ -310,8 +310,8 @@ portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
 import numpy as np
 
-last_value = portfolio["value"].iloc[-1]
-prev_value = portfolio["value"].iloc[:-2]
+last_value = portfolio["value"].iloc[-2]
+prev_value = portfolio["value"].iloc[:-3]
 
 st.write(last_value)
 st.write(prev_value)
