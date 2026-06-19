@@ -18,9 +18,9 @@ st.sidebar.title("👤 Selección de cartera")
 
 usuario = st.sidebar.selectbox(
     "Elige cartera",
-    ["Persona A", "Persona B"]
+    ["Adrian", "Oscar"]
 )
-
+df = load_aportaciones(cfg["aportaciones"])
 # =========================
 # CONEXIÓN GOOGLE SHEETS
 # =========================
@@ -34,14 +34,20 @@ def connect_gsheets():
 
 client = connect_gsheets()
 
+SHEETS_MAP = {
+    "Adrian": {
+        "aportaciones": "Aportaciones_A"},
+    "Oscar": {
+        "aportaciones": "Aportaciones_B"}
+}
 
 # =========================
 # LOAD APORTACIONES
 # =========================
 @st.cache_data(ttl=300)
-def load_aportaciones():
+def load_aportaciones(sheet_name):
     sh = client.open_by_key(SPREADSHEET_ID)
-    ws = sh.worksheet("Aportaciones_A")
+    ws = sh.worksheet(sheet_name)
     return pd.DataFrame(ws.get_all_records())
 
 @st.cache_data(ttl=300)
