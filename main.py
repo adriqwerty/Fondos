@@ -339,7 +339,7 @@ df_view = df_view[
         "Rentabilidad (%)"
     ]
 ]
-df_view = df_view.drop(columns=["units"])
+
 styled = (
     df_view.style
     .format({
