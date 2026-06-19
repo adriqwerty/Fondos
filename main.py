@@ -311,8 +311,10 @@ portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
 import numpy as np
 
 last_value = portfolio["value"].iloc[-1]
-
 prev_value = portfolio["value"].iloc[:-2]
+
+st.write(last_value)
+st.write(prev_value)
 prev_value = prev_value[prev_value != last_value].iloc[-1] if (prev_value != last_value).any() else np.nan
 
 portfolio["1d (%)"] = ((last_value - prev_value) / prev_value) * 100 if pd.notna(prev_value) else np.nan
