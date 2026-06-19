@@ -306,18 +306,14 @@ portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 
 # % cambios estándar (ya alineados con pandas)
+last_value = portfolio["value"].iloc[-2]
+prev_value = portfolio["value"].iloc[-3]
+
+portfolio["1d (%)"] =(prev_value-last_value)/prev_value*100
 portfolio["7d (%)"] = portfolio["value"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
-import numpy as np
-
-last_value = portfolio["value"].iloc[-2]
-prev_value = portfolio["value"].iloc[:-3]
-
 st.write(last_value)
 st.write(prev_value)
-prev_value = prev_value[prev_value != last_value].iloc[-1] if (prev_value != last_value).any() else np.nan
-
-portfolio["1d (%)"] = ((last_value - prev_value) / prev_value) * 100 if pd.notna(prev_value) else np.nan
 
 st.write(portfolio)
 # =========================
