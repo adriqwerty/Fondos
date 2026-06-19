@@ -299,6 +299,28 @@ resumen_total = pd.DataFrame([{
     "1 mes (%)": mes_total,
     "Última actualización": ultima_actualizacion
 }])
+
+# =========================
+# FINAL
+# =========================
+final = resumen.merge(metrics_fund, on="fund", how="left")
+final = final.merge(last_dates, on="fund", how="left")
+final["order"] = final["fund"].map(orden_dict)
+
+final = final.sort_values("order", na_position="last").drop(columns=["order"])
+
+final = final.rename(columns={
+    "fund": "Fondo",
+    "invertido": "Invertido",
+    "valor_actual": "Valor actual",
+    "beneficio": "Ganancia",
+    "rentabilidad": "Rentabilidad (%)",
+    "%_1d": "1 día (%)",
+    "%_7d": "7 días (%)",
+    "%_30d": "1 mes (%)",
+    "last_date": "Última actualización"
+})
+
 st.subheader("💼 Resumen Total")
 
 styled_total = (
@@ -339,44 +361,6 @@ st.dataframe(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# =========================
-# FINAL
-# =========================
-final = resumen.merge(metrics_fund, on="fund", how="left")
-final = final.merge(last_dates, on="fund", how="left")
-final["order"] = final["fund"].map(orden_dict)
-
-final = final.sort_values("order", na_position="last").drop(columns=["order"])
-
-final = final.rename(columns={
-    "fund": "Fondo",
-    "invertido": "Invertido",
-    "valor_actual": "Valor actual",
-    "beneficio": "Ganancia",
-    "rentabilidad": "Rentabilidad (%)",
-    "%_1d": "1 día (%)",
-    "%_7d": "7 días (%)",
-    "%_30d": "1 mes (%)",
-    "last_date": "Última actualización"
-})
 
 
 # =========================
