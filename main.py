@@ -303,16 +303,14 @@ portfolio = (
 # 2. Ganancia diaria
 portfolio["ganancia"] = portfolio["valor"] - portfolio["invertido"]
 
+portfolio = portfolio.sort_values("date").reset_index(drop=True)
+
+portfolio = portfolio.dropna(subset=["valor"])
+portfolio = portfolio[portfolio["valor"] > 0]
+
+portfolio["1d (%)"] = portfolio["valor"].pct_change(1) * 100
 portfolio["7d (%)"] = portfolio["valor"].pct_change(7) * 100
 portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
-
-if len(portfolio) > 1:
-    last = portfolio["valor"].iloc[-1]
-    prev = portfolio["valor"].iloc[-2]
-
-    portfolio["1d (%)"] = ((last - prev) / prev) * 100
-else:
-    portfolio["1d (%)"] = None
 
 resumen_total = pd.DataFrame([{
     "Invertido": last["invertido"],
