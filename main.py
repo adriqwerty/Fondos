@@ -326,7 +326,19 @@ df_view = df_view.rename(columns={
     "beneficio": "Ganancia",
     "rentabilidad": "Rentabilidad (%)",
 })
-
+df_view = df_view[
+    [
+        "Fecha",
+        "Fondo",
+        "ISIN",
+        "Invertido",
+        "Valor Actual",
+        "Precio",
+        "Precio Actual",
+        "Ganancia",
+        "Rentabilidad (%)"
+    ]
+]
 df_view = df_view.drop(columns=["units"])
 styled = (
     df_view.style
