@@ -162,10 +162,15 @@ def calc_changes(group):
     week_data = group[group["date"] <= week_date]
     week_vl = week_data.iloc[-1]["vl"] if not week_data.empty else None
 
+    month_date = last_date - pd.Timedelta(days=30)
+    month_data = group[group["date"] <= month_date]
+    month_vl = month_data.iloc[-1]["vl"] if not month_data.empty else None
+
     return pd.Series({
         "last_vl": last_vl,
         "prev_day_vl": prev_day,
-        "week_vl": week_vl
+        "week_vl": week_vl,
+        "month_vl": month_vl
     })
 
 
@@ -173,11 +178,13 @@ metrics = hist_df.groupby(["fund", "isin"]).apply(calc_changes).reset_index()
 
 metrics["%_1d"] = (metrics["last_vl"] - metrics["prev_day_vl"]) / metrics["prev_day_vl"] * 100
 metrics["%_7d"] = (metrics["last_vl"] - metrics["week_vl"]) / metrics["week_vl"] * 100
+metrics["%_30d"] = (metrics["last_vl"] - metrics["month_vl"]) / metrics["month_vl"] * 100
 
 
 metrics_fund = metrics.groupby("fund").agg({
     "%_1d": "mean",
-    "%_7d": "mean"
+    "%_7d": "mean",
+    "%_30d": "mean"
 }).reset_index()
 
 # ====================
@@ -272,6 +279,7 @@ final = final.rename(columns={
     "rentabilidad": "Rentabilidad (%)",
     "%_1d": "1 día (%)",
     "%_7d": "7 días (%)",
+    "%_30d": "1 mes (%)",
     "last_date": "Última actualización"
 })
 
@@ -290,6 +298,7 @@ styled = (
         "Rentabilidad (%)": "{:.2f} %",
         "1 día (%)": "{:.2f} %",
         "7 días (%)": "{:.2f} %",
+        "1 mes (%)": "{:.2f} %",
         "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
     })
     .map(
