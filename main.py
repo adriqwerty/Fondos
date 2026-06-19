@@ -308,21 +308,22 @@ portfolio["1m (%)"] = portfolio["valor"].pct_change(30) * 100
 
 portfolio = portfolio.sort_values("date").reset_index(drop=True)
 
+last_date = portfolio.iloc[-1]["date"]
 last_value = portfolio.iloc[-1]["valor"]
 
-# buscar último valor distinto al actual
-prev_series = portfolio["valor"].iloc[:-1]
+# buscar valor más cercano ANTES de 1 día real
+target_date = last_date - pd.Timedelta(days=1)
 
-# eliminar valores iguales consecutivos al final
-prev_value = None
-for v in reversed(prev_series.values):
-    if not np.isclose(v, last_value):
-        prev_value = v
-        break
+past = portfolio[portfolio["date"] <= target_date]
+
+if not past.empty:
+    prev_value = past.iloc[-1]["valor"]
+else:
+    prev_value = None
 
 
 def safe_pct(current, past):
-    if past is None or past == 0:
+    if past is None or past == 0 or np.isclose(past, 0):
         return None
     return ((current - past) / past) * 100
 
