@@ -24,7 +24,7 @@ SHEETS_MAP = {
     "Adrian": {
         "aportaciones": "Aportaciones_A"},
     "Oscar": {
-        "aportaciones": "Aportaciones_B",
+        "aportaciones": "Aportaciones_B"},
     "Arancha": {
         "aportaciones": "Aportaciones_C"}
 }
