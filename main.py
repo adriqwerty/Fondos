@@ -281,39 +281,6 @@ final = final.rename(columns={
 })
 
 # =========================
-# RESUMEN
-# =========================
-st.subheader("📊 Resumen por fondo")
-altura_tabla = 35* len(final) +38
-styled = (
-    final.style
-    .format({
-        "Invertido": "{:,.2f} €",
-        "Valor actual": "{:,.2f} €",
-        "Ganancia": "{:,.2f} €",
-        "Rentabilidad (%)": "{:.2f} %",
-        "1 día (%)": "{:.2f} %",
-        "7 días (%)": "{:.2f} %",
-        "1 mes (%)": "{:.2f} %",
-        "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
-    })
-    .map(
-        color_rentabilidad,
-        subset=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)","Rentabilidad (%)"]
-    )
-    .set_properties(**{
-        "text-align": "center",
-        "font-weight": "bold"
-    })
-)
-
-st.dataframe(
-    styled,
-    use_container_width=True,
-    hide_index=True,
-    height=altura_tabla
-)
-# =========================
 # 📊 RESUMEN GLOBAL CARTERA
 # =========================
 
@@ -389,6 +356,43 @@ st.dataframe(
     hide_index=True,
     height=100
 )
+
+
+
+# =========================
+# RESUMEN
+# =========================
+st.subheader("📊 Resumen por fondo")
+altura_tabla = 35* len(final) +38
+styled = (
+    final.style
+    .format({
+        "Invertido": "{:,.2f} €",
+        "Valor actual": "{:,.2f} €",
+        "Ganancia": "{:,.2f} €",
+        "Rentabilidad (%)": "{:.2f} %",
+        "1 día (%)": "{:.2f} %",
+        "7 días (%)": "{:.2f} %",
+        "1 mes (%)": "{:.2f} %",
+        "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
+    })
+    .map(
+        color_rentabilidad,
+        subset=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)","Rentabilidad (%)"]
+    )
+    .set_properties(**{
+        "text-align": "center",
+        "font-weight": "bold"
+    })
+)
+
+st.dataframe(
+    styled,
+    use_container_width=True,
+    hide_index=True,
+    height=altura_tabla
+)
+
 
 
 st.subheader("📄 Detalle aportaciones")
