@@ -320,7 +320,7 @@ st.write(portfolio)
 # RESUMEN FINAL
 # =========================
 
-last = portfolio.iloc[-1]
+last = portfolio.iloc[-2]
 
 resumen_total = pd.DataFrame([{
     "Invertido": last["invested"],
