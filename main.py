@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # =========================
 
 
-st.set_page_config(page_title="Inversiones", layout="wide")
+st.set_page_config(page_title="Inversiones 2", layout="wide")
 
 
 st.title("📊 Dashboard de Fondos")
