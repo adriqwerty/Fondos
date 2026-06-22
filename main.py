@@ -315,8 +315,6 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
-st.write(final)
-
 
 # =========================
 # PORTFOLIO
