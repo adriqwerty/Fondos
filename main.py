@@ -207,8 +207,8 @@ def calc_changes(group):
 
 
 metrics = hist_df.groupby(["fund", "isin"]).apply(calc_changes).reset_index()
-tmp = final.copy()
-st.write(tmp)
+
+st.write(metrics)
 metrics["%_1d"] = (metrics["last_vl"] - metrics["prev_day_vl"]) / metrics["prev_day_vl"] * 100
 metrics["%_7d"] = (metrics["last_vl"] - metrics["week_vl"]) / metrics["week_vl"] * 100
 metrics["%_30d"] = (metrics["last_vl"] - metrics["month_vl"]) / metrics["month_vl"] * 100
