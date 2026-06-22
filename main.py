@@ -20,7 +20,7 @@ from actualizar_valores import actualizar_valores
 st.sidebar.header("⚙️ Mantenimiento")
 
 if st.sidebar.button("🔄 Forzar actualización"):
-    with st.spinner("Conectando con FT y Google Sheets..."):
+    with st.spinner("Actualizando Precios..."):
         actualizar_valores()
     st.sidebar.success("Datos actualizados correctamente")
 
@@ -207,7 +207,8 @@ def calc_changes(group):
 
 
 metrics = hist_df.groupby(["fund", "isin"]).apply(calc_changes).reset_index()
-
+tmp = final.copy()
+st.write(tmp)
 metrics["%_1d"] = (metrics["last_vl"] - metrics["prev_day_vl"]) / metrics["prev_day_vl"] * 100
 metrics["%_7d"] = (metrics["last_vl"] - metrics["week_vl"]) / metrics["week_vl"] * 100
 metrics["%_30d"] = (metrics["last_vl"] - metrics["month_vl"]) / metrics["month_vl"] * 100
