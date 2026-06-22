@@ -72,6 +72,10 @@ def init_sheets():
 # =========================
 
 def clean_vl(x):
+    x=x.replace(",","")
+    x=x.replace(".",",")
+    
+
     x = str(x).strip()
 
     if "," in x and "." in x:
