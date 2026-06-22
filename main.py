@@ -23,6 +23,8 @@ if st.sidebar.button("🔄 Forzar actualización"):
     with st.spinner("Actualizando Precios..."):
         actualizar_valores()
     st.sidebar.success("Datos actualizados correctamente")
+    st.cache_data.clear()
+    st.rerun()
 
 
 
