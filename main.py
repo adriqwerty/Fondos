@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS premium para forzar el modo noche de manera consistente en cualquier navegador
+# Inyección de CSS premium para forzar el modo noche y unificar títulos/tablas
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
@@ -32,8 +32,8 @@ st.markdown("""
         color: #f8fafc !important;
     }
     
-    /* Estilización premium de tablas nativas en Modo Oscuro */
-    .stDataFrame th {
+    /* 🎨 UNIFICACIÓN TOTAL DE ENCABEZADOS DE TABLAS (FILA DE TÍTULOS) */
+    .stDataFrame th, [data-testid="stDataFrame"] th, .stDataFrame [data-testid="stDataFrame-HeaderCell"] {
         background-color: #1e293b !important;
         color: #94a3b8 !important;
         font-weight: 600 !important;
@@ -42,6 +42,8 @@ st.markdown("""
         letter-spacing: 0.5px !important;
         border-bottom: 2px solid #334155 !important;
     }
+    
+    /* Contenedor general de tablas */
     div[data-testid="stDataFrame"] {
         border: 1px solid #334155 !important;
         border-radius: 12px !important;
@@ -49,7 +51,7 @@ st.markdown("""
         background-color: #0f172a !important;
     }
     
-    /* Corrección de color para las pestañas (Tabs) */
+    /* Unificación de color para títulos de pestañas (Tabs) */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
     }
@@ -455,7 +457,8 @@ with tab_graficos:
             name="Valor cartera", mode="lines", line=dict(color="#3b82f6", width=3)
         ))
         fig1.update_layout(
-            title="Evolución inversión vs mercado", xaxis_title="Fecha", yaxis_title="€",
+            title=dict(text="Evolución inversión vs mercado", font=dict(color="#f8fafc")),
+            xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
             hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
         )
@@ -469,7 +472,8 @@ with tab_graficos:
         ))
         fig2.add_hline(y=0, line_dash="dash", line_color="#475569")
         fig2.update_layout(
-            title="Evolución del beneficio", xaxis_title="Fecha", yaxis_title="€",
+            title=dict(text="Evolución del beneficio", font=dict(color="#f8fafc")),
+            xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
             hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
         )
@@ -502,19 +506,18 @@ with tab_graficos:
         ]
     )
     fig_pie.update_layout(
-        title=dict(text="📊 Distribución de la cartera", x=0.5),
+        title=dict(text="📊 Distribución de la cartera", x=0.5, font=dict(color="#f8fafc")),
         template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False, height=650, margin=dict(l=20, r=20, t=60, b=20)
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
 # ----------------------------------------------------------
-# TAB 3: HISTORIAL DE EVOLUCIÓN (PESTAÑA INDEPENDIENTE EXTRAÍDA)
+# TAB 3: HISTORIAL DE EVOLUCIÓN (PESTAÑA INDEPENDIENTE)
 # ----------------------------------------------------------
 with tab_evolucion:
     st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
     
-    # Preparación de datos (reutilizando portfolio_graph calculado en el bloque anterior)
     df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={
         "date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia",
     })
@@ -534,7 +537,7 @@ with tab_evolucion:
 # TAB 4: DETALLE DE APORTACIONES
 # ----------------------------------------------------------
 with tab_detalles:
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📄 Historial completo de movimientos</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     
     col_select, _ = st.columns([1, 2])
     with col_select:
