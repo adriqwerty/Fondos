@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS premium corregida para eliminar cabeceras blancas en tablas y ampliar pestañas
+# Inyección de CSS premium destructora de Shadow DOM (Corrige títulos de tablas definitivamente)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
@@ -32,22 +32,30 @@ st.markdown("""
         color: #f8fafc !important;
     }
     
-    /* 🎨 CORRECCIÓN ABSOLUTA DE ENCABEZADOS DE TABLAS (EVITA FILAS BLANCAS) */
-    div[data-testid="stDataFrame"] table thead tr th,
-    div[data-testid="stDataFrame"] [data-testid="stDataFrame-HeaderCell"],
-    .stDataFrame th, 
-    thead th {
+    /* 🎨 SUPER CORRECCIÓN CABECERAS DE TABLAS (IGNORA EL SHADOW DOM DE STREAMLIT) */
+    /* Fuerza el fondo oscuro y texto claro en CUALQUIER elemento de cabecera nativo u ordenable */
+    [data-testid="stTable"] th, 
+    [data-testid="stDataFrame"] th,
+    [data-testid="stDataFrame"] [role="columnheader"],
+    [data-testid="stDataFrame"] div[class*="header"], 
+    th {
         background-color: #1e293b !important;
-        color: #f8fafc !important; /* Texto en blanco premium */
-        font-weight: 600 !important;
+        color: #f8fafc !important;
+    }
+
+    /* Modifica el texto interior de las celdas de título (Fila 0) */
+    [data-testid="stDataFrame"] [role="columnheader"] p,
+    [data-testid="stDataFrame"] th span,
+    th p, th {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
         text-transform: uppercase !important;
-        font-size: 12px !important;
+        font-size: 13px !important;
         letter-spacing: 0.5px !important;
-        border-bottom: 2px solid #334155 !important;
     }
     
     /* Contenedor general de tablas con bordes suavizados */
-    div[data-testid="stDataFrame"] {
+    div[data-testid="stDataFrame"], div[data-testid="stTable"] {
         border: 1px solid #334155 !important;
         border-radius: 12px !important;
         overflow: hidden;
@@ -57,14 +65,14 @@ st.markdown("""
     /* Unificación de color y tamaño para títulos de pestañas (Tabs) */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
-        font-size: 20px !important; /* Tamaño grande para las pestañas inactivas */
+        font-size: 20px !important; 
         font-weight: 500 !important;
         padding: 4px 8px !important;
     }
     button[aria-selected="true"] p {
-        color: #3b82f6 !important; /* Azul llamativo para la pestaña activa */
-        font-size: 20px !important; /* Tamaño grande para la pestaña activa */
-        font-weight: 700 !important; /* Más gruesa para resaltar */
+        color: #3b82f6 !important; 
+        font-size: 20px !important; 
+        font-weight: 700 !important; 
     }
     </style>
 """, unsafe_allow_html=True)
