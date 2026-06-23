@@ -261,18 +261,49 @@ with tab_graficos:
         fig2.update_layout(title="Evolución del Beneficio Neto (€)", template="plotly_white", hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig2, use_container_width=True)
 
-    # Gráfico de distribución (Tarta) centrado abajo
     st.markdown("---")
-    latest = dense.sort_values("date").groupby("fund").tail(1).dropna(subset=["market_value"])
-    alloc = latest.groupby("fund", as_index=False).agg(value=("market_value", "sum")).sort_values("value", ascending=False)
+    
+    # ==========================================
+    # 🔥 RESTAURADO TU GRÁFICO DE TARTA ORIGINAL
+    # ==========================================
+    latest = dense.sort_values("date").groupby("fund").tail(1)
+    latest = latest.dropna(subset=["market_value"])
 
-    fig_pie = go.Figure(data=[go.Pie(
-        labels=alloc["fund"], values=alloc["value"], hole=0.5,
-        textinfo="label+percent", textposition="inside",
-        hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Peso: %{percent}<extra></extra>",
-        sort=False, marker=dict(line=dict(color="white", width=2))
-    )])
-    fig_pie.update_layout(title=dict(text="📊 Distribución Actual de la Cartera", x=0.5), showlegend=True, height=500)
+    alloc = (
+        latest.groupby("fund", as_index=False)
+        .agg(value=("market_value", "sum"))
+        .sort_values("value", ascending=False)
+    )
+
+    fig_pie = go.Figure(
+        data=[
+            go.Pie(
+                labels=alloc["fund"],
+                values=alloc["value"],
+                hole=0.55,
+                
+                # Tu clave exacta restaurada
+                textinfo="label+percent",
+                textposition="inside",
+                textfont=dict(size=14, color="white"),
+
+                hovertemplate="<b>%{label}</b><br>" +
+                              "Valor: %{value:,.0f} €<br>" +
+                              "Peso: %{percent}<extra></extra>",
+
+                sort=False,
+                marker=dict(line=dict(color="white", width=2))
+            )
+        ]
+    )
+
+    fig_pie.update_layout(
+        title=dict(text="📊 Distribución de la cartera", x=0.5),
+        showlegend=False,
+        height=800,
+        margin=dict(l=20, r=20, t=60, b=20)
+    )
+
     st.plotly_chart(fig_pie, use_container_width=True)
 
 with tab_detalles:
