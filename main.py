@@ -19,16 +19,8 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    .main .block-container { padding-top: 2rem; }
-    
-    /* Cabecera corporativa */
-    .header-container { 
-        text-align: center; 
-        padding: 24px 20px; 
-        border-bottom: 1px solid #e2e8f0; 
-        margin-bottom: 32px; 
-        background-color: #ffffff;
-    }
+    /* Reducción del margen superior tras quitar la cabecera gigante */
+    .main .block-container { padding-top: 1.5rem; }
     
     /* Estilización premium de tablas nativas de Streamlit */
     .stDataFrame th {
@@ -47,14 +39,6 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
     </style>
-""", unsafe_allow_html=True)
-
-# Encabezado unificado limpio
-st.markdown("""
-    <div class='header-container'>
-        <h1 style='color: #0f172a; font-size: 36px; font-weight: 700; margin-bottom: 6px;'>💼 Evolución de la Inversión</h1>
-        <p style='color: #64748b; font-size: 15px; margin: 0;'>Cuadro de mando financiero y análisis estratégico de activos</p>
-    </div>
 """, unsafe_allow_html=True)
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -338,9 +322,9 @@ portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
 last = portfolio.iloc[-2]
 
 # ==========================================
-# 🏛️ NUEVA UI: TARJETAS EJECUTIVAS (REEMPLAZA TABLA TOTAL)
+# 🏛️ INTERFAZ LIMPIA: TARJETAS EJECUTIVAS
 # ==========================================
-st.markdown("<h3 style='font-size: 20px; font-weight: 600; color: #0f172a; margin-bottom: 16px;'>📊 Resumen General</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 0px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
@@ -379,7 +363,7 @@ with kpi4:
         </div>
     """, unsafe_allow_html=True)
 
-st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 📑 ESTRUCTURA EN PESTAÑAS (TABS CON UX LIMPIA)
