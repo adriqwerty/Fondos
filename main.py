@@ -147,22 +147,22 @@ def load_prices():
 
     return dict(zip(latest["isin"], latest["vl"])), df
 
+# ==========================================================
+# Estilos de Celda Dinámicos para Evitar Fondos Blancos
+# ==========================================================
 def color_rentabilidad(val):
     try:
         val = float(val)
         if val > 0:
-            return "color: #10b981; font-weight: bold"   # Verde esmeralda
+            return "background-color: #1e293b; color: #10b981; font-weight: bold; text-align: center;"
         elif val < 0:
-            return "color: #f43f5e; font-weight: bold"   # Rojo coral moderno
+            return "background-color: #1e293b; color: #f43f5e; font-weight: bold; text-align: center;"
     except:
         pass
-    return "color: #f8fafc"
+    return "background-color: #1e293b; color: #f8fafc; text-align: center;"
 
-def bold_columns(df):
-    return pd.DataFrame(
-        [["font-weight: bold" for _ in df.columns] for _ in range(len(df))],
-        columns=df.columns
-    )
+def style_base_cells(val):
+    return "background-color: #1e293b; color: #f8fafc; text-align: center;"
 
 # ==========================================
 # PROCESAMIENTO Y LÓGICA
@@ -384,11 +384,19 @@ with kpi4:
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-# ==========================================
-# 📑 ESTRUCTURA EN PESTAÑAS (TABS OSCUROS)
-# ==========================================
-tab_resumen, tab_graficos, tab_detalles = st.tabs(["📋 Resumen de Fondos", "📈 Gráficos de Evolución", "🔍 Detalle de Aportaciones"])
+# ==========================================================
+# 📑 ESTRUCTURA EN PESTAÑAS (4 TABS SEPARADOS NATIVOS)
+# ==========================================================
+tab_resumen, tab_graficos, tab_evolucion, tab_detalles = st.tabs([
+    "📋 Resumen de Fondos", 
+    "📈 Gráficos de Evolución", 
+    "📊 Historial de Evolución",
+    "🔍 Detalle de Aportaciones"
+])
 
+# ----------------------------------------------------------
+# TAB 1: RESUMEN DE FONDOS
+# ----------------------------------------------------------
 with tab_resumen:
     st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
     altura_tabla = 35 * len(final) + 38
@@ -404,13 +412,11 @@ with tab_resumen:
             "1 mes (%)": "{:.2f} %",
             "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
         })
+        .map(style_base_cells)
         .map(
             color_rentabilidad,
             subset=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)","Rentabilidad (%)"]
         )
-        .set_properties(**{
-            "text-align": "center"
-        })
     )
 
     st.dataframe(
@@ -420,6 +426,9 @@ with tab_resumen:
         height=altura_tabla
     )
 
+# ----------------------------------------------------------
+# TAB 2: GRÁFICOS DE EVOLUCIÓN
+# ----------------------------------------------------------
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -433,7 +442,6 @@ with tab_graficos:
     )
     portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
 
-    # Gráficos en paralelo adaptados a la paleta nocturna de Plotly
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
@@ -467,30 +475,11 @@ with tab_graficos:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-    # Tabla histórica de evolución
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 20px;'>📊 Historial de Evolución</h3>", unsafe_allow_html=True)
-    df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={
-        "date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia",
-    })
-    styled_evo = (
-        df_view_evo.style
-        .format({
-            "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
-            "Invertido": "{:,.2f} €", "Precio": "{:,.2f} €", "Ganancia": "{:,.2f} €"
-        })
-        .map(color_rentabilidad, subset=["Ganancia"])
-        .set_properties(**{"text-align": "center"})
-    )
-    st.dataframe(styled_evo, use_container_width=True, hide_index=True)
-
     st.markdown("---")
     
-    # ==========================================================
-    # 🔥 DISTRIBUCIÓN DE CARTERA ORIGINAL EXACTA ADAPTADA A OSCURO
-    # ==========================================================
+    # Distribución de cartera
     latest = dense.sort_values("date").groupby("fund").tail(1)
     latest = latest.dropna(subset=["market_value"])
-
     alloc = (
         latest.groupby("fund", as_index=False)
         .agg(value=("market_value", "sum"))
@@ -506,27 +495,44 @@ with tab_graficos:
                 textinfo="label+percent",
                 textposition="inside",
                 textfont=dict(size=14, color="white"),
-                hovertemplate="<b>%{label}</b><br>" +
-                              "Valor: %{value:,.0f} €<br>" +
-                              "Peso: %{percent}<extra></extra>",
+                hovertemplate="<b>%{label}</b><br>Valor: %{value:,.0f} €<br>Peso: %{percent}<extra></extra>",
                 sort=False,
                 marker=dict(line=dict(color="#0f172a", width=2))
             )
         ]
     )
-
     fig_pie.update_layout(
         title=dict(text="📊 Distribución de la cartera", x=0.5),
-        template="plotly_dark",
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,
-        height=800,
-        margin=dict(l=20, r=20, t=60, b=20)
+        template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        showlegend=False, height=650, margin=dict(l=20, r=20, t=60, b=20)
     )
-
     st.plotly_chart(fig_pie, use_container_width=True)
 
+# ----------------------------------------------------------
+# TAB 3: HISTORIAL DE EVOLUCIÓN (PESTAÑA INDEPENDIENTE EXTRAÍDA)
+# ----------------------------------------------------------
+with tab_evolucion:
+    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
+    
+    # Preparación de datos (reutilizando portfolio_graph calculado en el bloque anterior)
+    df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={
+        "date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia",
+    })
+    
+    styled_evo = (
+        df_view_evo.style
+        .format({
+            "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
+            "Invertido": "{:,.2f} €", "Precio": "{:,.2f} €", "Ganancia": "{:,.2f} €"
+        })
+        .map(style_base_cells)
+        .map(color_rentabilidad, subset=["Ganancia"])
+    )
+    st.dataframe(styled_evo, use_container_width=True, hide_index=True)
+
+# ----------------------------------------------------------
+# TAB 4: DETALLE DE APORTACIONES
+# ----------------------------------------------------------
 with tab_detalles:
     st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📄 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     
@@ -558,8 +564,8 @@ with tab_detalles:
             "Invertido": "{:,.2f} €", "Precio": "{:,.2f} €", "Precio Actual": "{:,.2f} €",
             "Valor Actual": "{:,.2f} €", "Ganancia": "{:,.2f} €", "Rentabilidad (%)": "{:.2f} %"
         })
+        .map(style_base_cells)
         .map(color_rentabilidad, subset=["Ganancia","Rentabilidad (%)"])
-        .set_properties(**{"text-align": "center"})
     )
 
     st.dataframe(styled_detalles, use_container_width=True, hide_index=True)
