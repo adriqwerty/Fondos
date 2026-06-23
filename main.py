@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS premium corregida para eliminar cabeceras blancas en tablas
+# Inyección de CSS premium corregida para eliminar cabeceras blancas en tablas y ampliar pestañas
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
@@ -54,16 +54,16 @@ st.markdown("""
         background-color: #0f172a !important;
     }
     
-    /* Unificación de color para títulos de pestañas (Tabs) */
+    /* Unificación de color y tamaño para títulos de pestañas (Tabs) */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
-        font-size: 20px !important; /* <--- Tamaño más grande para las pestañas inactivas */
+        font-size: 20px !important; /* Tamaño grande para las pestañas inactivas */
         font-weight: 500 !important;
         padding: 4px 8px !important;
     }
     button[aria-selected="true"] p {
         color: #3b82f6 !important; /* Azul llamativo para la pestaña activa */
-        font-size: 20px !important; /* <--- Tamaño más grande para la pestaña activa */
+        font-size: 20px !important; /* Tamaño grande para la pestaña activa */
         font-weight: 700 !important; /* Más gruesa para resaltar */
     }
     </style>
@@ -466,7 +466,7 @@ with tab_graficos:
         fig1.update_layout(
             title=dict(
                 text="Evolución inversión vs mercado", 
-                font=dict(color="#f8fafc", size=18, family="Inter") # Unificación tamaño/color
+                font=dict(color="#f8fafc", size=18, family="Inter")
             ),
             xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
@@ -484,7 +484,7 @@ with tab_graficos:
         fig2.update_layout(
             title=dict(
                 text="Evolución del beneficio", 
-                font=dict(color="#f8fafc", size=18, family="Inter") # Unificación tamaño/color
+                font=dict(color="#f8fafc", size=18, family="Inter")
             ),
             xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
@@ -521,11 +521,11 @@ with tab_graficos:
     fig_pie.update_layout(
         title=dict(
             text="📊 Distribución de la cartera", 
-            x=0.0, # <--- Cambiado de 0.5 a 0.0 para alinearlo perfectamente a la izquierda con los otros gráficos
+            x=0.0, 
             font=dict(color="#f8fafc", size=18, family="Inter")
         ),
         template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False, height=650, margin=dict(l=10, r=20, t=60, b=20) # Reducido margen izquierdo a 10
+        showlegend=False, height=650, margin=dict(l=10, r=20, t=60, b=20)
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
