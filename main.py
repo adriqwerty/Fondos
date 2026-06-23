@@ -517,13 +517,12 @@ with tab_graficos:
     fig_pie.update_layout(
         title=dict(
             text="📊 Distribución de la cartera", 
-            x=0.5, 
-            font=dict(color="#f8fafc", size=18, family="Inter") # Unificación tamaño/color
+            x=0.0, # <--- Cambiado de 0.5 a 0.0 para alinearlo perfectamente a la izquierda con los otros gráficos
+            font=dict(color="#f8fafc", size=18, family="Inter")
         ),
         template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False, height=650, margin=dict(l=20, r=20, t=60, b=20)
+        showlegend=False, height=650, margin=dict(l=10, r=20, t=60, b=20) # Reducido margen izquierdo a 10
     )
-    st.plotly_chart(fig_pie, use_container_width=True)
 
 # ----------------------------------------------------------
 # TAB 3: HISTORIAL DE EVOLUCIÓN (PESTAÑA INDEPENDIENTE)
