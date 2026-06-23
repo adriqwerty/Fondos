@@ -1,6 +1,7 @@
 Ini, TOML
 
 [theme]
+base = "dark"
 primaryColor = "#2563eb"
 backgroundColor = "#0f172a"
 secondaryBackgroundColor = "#1e293b"
