@@ -4,39 +4,58 @@ from google.oauth2.service_account import Credentials
 import streamlit as st
 import plotly.graph_objects as go
 
-# ==========================================
-# CONFIGURACIÓN DE PÁGINA Y ESTILOS PREMIUM
-# ==========================================
+# ==========================================================
+# 🌌 INTERFAZ COMPLETA EN MODO OSCURO (FORZADO POR CSS)
+# ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS institucional para modernizar tipografías, tarjetas y tablas de Streamlit
+# Inyección de CSS premium para forzar el modo noche de manera consistente en cualquier navegador
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
     
-    /* Configuración de fuente global */
+    /* Configuración de fuente y fondo global */
     html, body, [class*="css"], .main .block-container {
         font-family: 'Inter', sans-serif;
+        color: #f8fafc !important;
     }
     
-    /* Reducción del margen superior tras quitar la cabecera gigante */
+    /* Fondo oscuro obligatorio para toda la app y la barra lateral */
+    .stApp, div[data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+    }
+    
     .main .block-container { padding-top: 1.5rem; }
     
-    /* Estilización premium de tablas nativas de Streamlit */
+    /* Asegurar textos legibles en la sidebar */
+    div[data-testid="stSidebar"] p, div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] label {
+        color: #f8fafc !important;
+    }
+    
+    /* Estilización premium de tablas nativas en Modo Oscuro */
     .stDataFrame th {
-        background-color: #f8fafc !important;
-        color: #64748b !important;
+        background-color: #1e293b !important;
+        color: #94a3b8 !important;
         font-weight: 600 !important;
         text-transform: uppercase !important;
         font-size: 11px !important;
         letter-spacing: 0.5px !important;
-        border-bottom: 2px solid #e2e8f0 !important;
+        border-bottom: 2px solid #334155 !important;
     }
     div[data-testid="stDataFrame"] {
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #334155 !important;
         border-radius: 12px !important;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        background-color: #0f172a !important;
+    }
+    
+    /* Corrección de color para las pestañas (Tabs) */
+    button[data-baseweb="tab"] p {
+        color: #94a3b8 !important;
+    }
+    button[aria-selected="true"] p {
+        color: #3b82f6 !important;
+        font-weight: 600;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -50,7 +69,7 @@ from actualizar_valores import actualizar_valores
 # SIDEBAR REORGANIZADA
 # ==========================================
 with st.sidebar:
-    st.markdown("<h2 style='font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 12px;'>👤 Selección de Cartera</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-bottom: 12px;'>👤 Selección de Cartera</h2>", unsafe_allow_html=True)
     usuario = st.selectbox(
         "Elige cartera",
         ["Adrian", "Oscar", "Arancha"],
@@ -59,7 +78,7 @@ with st.sidebar:
     
     st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;'>⚙️ Mantenimiento</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 12px;'>⚙️ Mantenimiento</h2>", unsafe_allow_html=True)
     
     if st.button("🔄 Forzar actualización", use_container_width=True):
         with st.spinner("Actualizando Precios..."):
@@ -90,7 +109,7 @@ def connect_gsheets():
 client = connect_gsheets()
 
 # ==========================================
-# CARGA DE DATOS (Tus funciones originales)
+# CARGA DE DATOS
 # ==========================================
 @st.cache_data(ttl=300)
 def load_aportaciones(sheet_name):
@@ -132,12 +151,12 @@ def color_rentabilidad(val):
     try:
         val = float(val)
         if val > 0:
-            return "color: #10b981; font-weight: bold"   # verde moderno
+            return "color: #10b981; font-weight: bold"   # Verde esmeralda
         elif val < 0:
-            return "color: #ef4444; font-weight: bold"   # rojo moderno
+            return "color: #f43f5e; font-weight: bold"   # Rojo coral moderno
     except:
         pass
-    return "color: #0f172a"
+    return "color: #f8fafc"
 
 def bold_columns(df):
     return pd.DataFrame(
@@ -146,7 +165,7 @@ def bold_columns(df):
     )
 
 # ==========================================
-# PROCESAMIENTO Y LÓGICA (Tu código intacto)
+# PROCESAMIENTO Y LÓGICA
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
@@ -322,43 +341,43 @@ portfolio["1m (%)"] = portfolio["value"].pct_change(30) * 100
 last = portfolio.iloc[-2]
 
 # ==========================================
-# 🏛️ INTERFAZ LIMPIA: TARJETAS EJECUTIVAS
+# 🏛️ INTERFAZ OSCURA: TARJETAS EJECUTIVAS
 # ==========================================
-st.markdown("<h3 style='font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 0px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='font-size: 22px; font-weight: 700; color: #f8fafc; margin-top: 0px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-            <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">💰 Total Invertido</p>
-            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #0f172a;">{last['invested']:,.2f} €</p>
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">💰 Total Invertido</p>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #f8fafc;">{last['invested']:,.2f} €</p>
         </div>
     """, unsafe_allow_html=True)
 
 with kpi2:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-            <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📈 Valor Actual</p>
-            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #1e40af;">{last['value']:,.2f} €</p>
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📈 Valor Actual</p>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #60a5fa;">{last['value']:,.2f} €</p>
         </div>
     """, unsafe_allow_html=True)
 
 with kpi3:
     rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
-    color_ganancia = "#10b981" if last["profit"] >= 0 else "#ef4444"
+    color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-            <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🍀 Ganancia acumulada</p>
-            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last['profit']:,.2f} € <span style="font-size: 14px; font-weight: 500; color: #64748b;">({rentabilidad_total:.2f}%)</span></p>
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🍀 Ganancia acumulada</p>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last['profit']:,.2f} € <span style="font-size: 14px; font-weight: 500; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p>
         </div>
     """, unsafe_allow_html=True)
 
 with kpi4:
-    color_var = "#10b981" if last["1d (%)"] >= 0 else "#ef4444"
+    color_var = "#10b981" if last["1d (%)"] >= 0 else "#f43f5e"
     signo = "+" if last["1d (%)"] >= 0 else ""
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-            <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⚡ Variación Diaria</p>
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⚡ Variación Diaria</p>
             <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{last['1d (%)']:.2f} %</p>
         </div>
     """, unsafe_allow_html=True)
@@ -366,12 +385,12 @@ with kpi4:
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 📑 ESTRUCTURA EN PESTAÑAS (TABS CON UX LIMPIA)
+# 📑 ESTRUCTURA EN PESTAÑAS (TABS OSCUROS)
 # ==========================================
 tab_resumen, tab_graficos, tab_detalles = st.tabs(["📋 Resumen de Fondos", "📈 Gráficos de Evolución", "🔍 Detalle de Aportaciones"])
 
 with tab_resumen:
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
     altura_tabla = 35 * len(final) + 38
     styled = (
         final.style
@@ -414,22 +433,23 @@ with tab_graficos:
     )
     portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
 
-    # Gráficos de tendencias en paralelo para optimizar espacio ancho
+    # Gráficos en paralelo adaptados a la paleta nocturna de Plotly
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
         fig1 = go.Figure()
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], y=portfolio_graph["invested"],
-            name="Invertido", mode="lines", line=dict(color="#94a3b8", width=2)
+            name="Invertido", mode="lines", line=dict(color="#64748b", width=2)
         ))
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], y=portfolio_graph["value"],
-            name="Valor cartera", mode="lines", line=dict(color="#1e40af", width=3)
+            name="Valor cartera", mode="lines", line=dict(color="#3b82f6", width=3)
         ))
         fig1.update_layout(
             title="Evolución inversión vs mercado", xaxis_title="Fecha", yaxis_title="€",
-            template="plotly_white", hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
+            template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
         )
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -439,15 +459,16 @@ with tab_graficos:
             x=portfolio_graph["date"], y=portfolio_graph["profit"],
             name="Beneficio", mode="lines", line=dict(color="#10b981", width=2.5)
         ))
-        fig2.add_hline(y=0, line_dash="dash", line_color="#cbd5e1")
+        fig2.add_hline(y=0, line_dash="dash", line_color="#475569")
         fig2.update_layout(
             title="Evolución del beneficio", xaxis_title="Fecha", yaxis_title="€",
-            template="plotly_white", hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
+            template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10)
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-    # Tabla histórica de evolución abajo
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 20px;'>📊 Historial de Evolución</h3>", unsafe_allow_html=True)
+    # Tabla histórica de evolución
+    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 20px;'>📊 Historial de Evolución</h3>", unsafe_allow_html=True)
     df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={
         "date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia",
     })
@@ -465,7 +486,7 @@ with tab_graficos:
     st.markdown("---")
     
     # ==========================================================
-    # 🔥 TU DISTRIBUCIÓN DE CARTERA ORIGINAL EXACTA (SIN TOCAR)
+    # 🔥 DISTRIBUCIÓN DE CARTERA ORIGINAL EXACTA ADAPTADA A OSCURO
     # ==========================================================
     latest = dense.sort_values("date").groupby("fund").tail(1)
     latest = latest.dropna(subset=["market_value"])
@@ -489,13 +510,16 @@ with tab_graficos:
                               "Valor: %{value:,.0f} €<br>" +
                               "Peso: %{percent}<extra></extra>",
                 sort=False,
-                marker=dict(line=dict(color="white", width=2))
+                marker=dict(line=dict(color="#0f172a", width=2))
             )
         ]
     )
 
     fig_pie.update_layout(
         title=dict(text="📊 Distribución de la cartera", x=0.5),
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False,
         height=800,
         margin=dict(l=20, r=20, t=60, b=20)
@@ -504,7 +528,7 @@ with tab_graficos:
     st.plotly_chart(fig_pie, use_container_width=True)
 
 with tab_detalles:
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 10px; margin-bottom: 16px;'>📄 Historial completo de movimientos</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📄 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     
     col_select, _ = st.columns([1, 2])
     with col_select:
