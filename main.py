@@ -57,13 +57,13 @@ st.markdown("""
     /* Unificación de color para títulos de pestañas (Tabs) */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
-        font-size: 16px !important; /* <--- Tamaño más grande para las pestañas inactivas */
+        font-size: 20px !important; /* <--- Tamaño más grande para las pestañas inactivas */
         font-weight: 500 !important;
         padding: 4px 8px !important;
     }
     button[aria-selected="true"] p {
         color: #3b82f6 !important; /* Azul llamativo para la pestaña activa */
-        font-size: 16px !important; /* <--- Tamaño más grande para la pestaña activa */
+        font-size: 20px !important; /* <--- Tamaño más grande para la pestaña activa */
         font-weight: 700 !important; /* Más gruesa para resaltar */
     }
     </style>
