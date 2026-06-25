@@ -201,9 +201,9 @@ def load_fondos_dict():
 
 isin_to_fund_global = load_fondos_dict()
 
-# =======================================================
-# SIDEBAR ESTILIZADA CON CORRECCIÓN DEFINITIVA DE DECIMALES
-# =======================================================
+# ==========================================
+# SIDEBAR ESTILIZADA CON DETECTOR BLINDADO
+# ==========================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
     usuario = st.selectbox("Elige cartera", ["Adrian", "Oscar", "Arancha"], label_visibility="collapsed")
@@ -240,10 +240,21 @@ with st.sidebar:
                 ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
                 datos_actuales = pd.DataFrame(ws_check.get_all_records())
                 
+                # 🛠️ DETECTOR CORREGIDO: Asegurar parseo numérico limpio sin importar las comas/puntos de Sheets
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
-                        key = (str(r.get("date", "")).strip(), str(r.get("isin", "")).strip(), round(float(str(r.get("amount", 0)).replace(",", ".")), 2))
+                        fecha_s = str(r.get("date", "")).strip()
+                        isin_s = str(r.get("isin", "")).strip()
+                        # Limpiar importe de Sheets quitando comas regionales si vinieran como texto
+                        try:
+                            amount_raw = str(r.get("amount", "0")).replace(",", ".")
+                            importe_s = round(float(amount_raw), 2)
+                        except:
+                            importe_s = 0.0
+                        
+                        # Generar clave única de coincidencia exacta
+                        key = (fecha_s, isin_s, importe_s)
                         registros_existentes.add(key)
                 
                 filas_para_subir = []
@@ -256,10 +267,10 @@ with st.sidebar:
                     precio_val = round(float(fila["price"]), 2)
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
+                    # Comprobación contra el set unificado
                     llave_fila = (f_orden, isin_clean, importe_val)
                     duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
                     
-                    # 🛠️ TRUCO MAESTRO: Forzar formato con coma regional para evitar pérdida de decimales en Sheets
                     importe_str_es = f"{importe_val}".replace(".", ",")
                     precio_str_es = f"{precio_val}".replace(".", ",")
                     
@@ -340,7 +351,6 @@ price_map, hist_df = load_prices()
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
 
-# Limpieza adaptativa al leer de Sheets
 df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
 df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
