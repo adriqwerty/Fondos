@@ -468,6 +468,13 @@ portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 
 last = portfolio.iloc[-2]
 
+# --- Cálculo para el gráfico circular ---
+datos_circular = final.copy()
+# Aseguramos que 'Valor actual' sea numérico para el gráfico
+datos_circular["Valor actual"] = pd.to_numeric(
+    datos_circular["Valor actual"].astype(str).str.replace(" €", "").str.replace(",", ""), 
+    errors="coerce"
+)
 # ==========================================
 # VISTA GENERAL Y PANELES
 # ==========================================
