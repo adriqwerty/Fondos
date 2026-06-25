@@ -337,7 +337,7 @@ def load_aportaciones(sheet_name):
     sh = client.open_by_key(SPREADSHEET_ID)
     ws = sh.worksheet(sheet_name)
     df_data = pd.DataFrame(ws.get_all_values())
-    
+    df_data = pd.DataFrame(data[1:], columns=data[0])
     if not df_data.empty:
         if "amount" in df_data.columns:
             df_data["amount"] = pd.to_numeric(df_data["amount"].astype(str).str.replace(",", "."), errors="coerce")
