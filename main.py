@@ -530,7 +530,7 @@ with tab_resumen:
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
 # TAB 2: GRÁFICOS
-# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING)
+# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - CORREGIDA)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -542,13 +542,13 @@ with tab_graficos:
     with col_g1:
         fig1 = go.Figure()
         
-        # 📉 Línea de Capital Invertido (Sutil, como referencia de suelo)
+        # 📉 Línea de Capital Invertido
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["invested"], 
             name="Invertido", 
             mode="lines", 
-            line=dict(color="#64748b", width=1.5, dash="dash") # Línea discontinua elegante
+            line=dict(color="#64748b", width=1.5, dash="dash")
         ))
         
         # 🚀 Línea de Valor de Cartera con Relleno de Área Premium
@@ -558,24 +558,24 @@ with tab_graficos:
             name="Valor Cartera", 
             mode="lines", 
             line=dict(color="#3b82f6", width=3),
-            fill='tozeroy', # Rellena hacia el eje X
-            fillcolor='rgba(59, 130, 246, 0.08)' # Azul translúcido muy elegante
+            fill='tozeroy', 
+            fillcolor='rgba(59, 130, 246, 0.08)' 
         ))
         
         fig1.update_layout(
-            title=dict(text="Evolución del Valor Total", font=dict(size=14, color="#cbd5e1", weight="bold")),
+            # ✨ Solución: Negrita mediante HTML <b> y eliminamos 'weight'
+            title=dict(text="<b>Evolución del Valor Total</b>", font=dict(size=14, color="#cbd5e1")),
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=20, r=20, t=50, b=20),
             height=450,
-            hovermode="x unified", # Junta todas las métricas en un único cuadro flotante al pasar el ratón
+            hovermode="x unified", 
             
-            # 📅 Selectores de rango temporal estilo terminal financiera
             xaxis=dict(
                 showgrid=True,
                 gridcolor="#1e293b",
-                showspikes=True, # Punto de mira horizontal/vertical
+                showspikes=True, 
                 spikecolor="#3b82f6",
                 spikethickness=1,
                 spikemode="across",
@@ -583,7 +583,7 @@ with tab_graficos:
                     buttons=list([
                         dict(count=1, label="1M", step="month", stepmode="backward"),
                         dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(step="all", label="TODO")
+                        dict(step="all", label="TODO") # Eliminado stepmode conflictivo aquí
                     ]),
                     bgcolor="#1e293b",
                     activebgcolor="#3b82f6",
@@ -593,7 +593,7 @@ with tab_graficos:
             yaxis=dict(
                 showgrid=True,
                 gridcolor="#1e293b",
-                tickformat=",..2f", # Formato de miles y decimales limpio
+                tickformat=",..2f", 
                 suffix=" €"
             )
         )
@@ -610,11 +610,12 @@ with tab_graficos:
             mode="lines", 
             line=dict(color="#10b981", width=3),
             fill='tozeroy',
-            fillcolor='rgba(16, 185, 129, 0.06)' # Verde translúcido sutil
+            fillcolor='rgba(16, 185, 129, 0.06)' 
         ))
         
         fig2.update_layout(
-            title=dict(text="Evolución de la Ganancia Neta", font=dict(size=14, color="#cbd5e1", weight="bold")),
+            # ✨ Solución: Negrita mediante HTML <b> y eliminamos 'weight'
+            title=dict(text="<b>Evolución de la Ganancia Neta</b>", font=dict(size=14, color="#cbd5e1")),
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
