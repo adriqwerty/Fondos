@@ -481,7 +481,7 @@ datos_circular["Valor actual"] = pd.to_numeric(
 # VISTA GENERAL Y PANELES
 # ==========================================
 #st.markdown("<h3 style='font-size: 20px; font-weight: 700; color: #f8fafc; margin-top: 5px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
-st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+#st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
