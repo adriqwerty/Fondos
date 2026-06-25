@@ -201,9 +201,9 @@ def load_fondos_dict():
 
 isin_to_fund_global = load_fondos_dict()
 
-# ==========================================
-# SIDEBAR ESTILIZADA CON CORRECCIÓN DE PRECIO
-# ==========================================
+# =======================================================
+# SIDEBAR ESTILIZADA CON CORRECCIÓN DEFINITIVA DE DECIMALES
+# =======================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
     usuario = st.selectbox("Elige cartera", ["Adrian", "Oscar", "Arancha"], label_visibility="collapsed")
@@ -221,7 +221,6 @@ with st.sidebar:
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
-                # 🛠️ CORRECCIÓN CRÍTICA DE TRATAMIENTO DE DECIMALES
                 nuevo_df["Importe estimado"] = (
                     nuevo_df["Importe estimado"].astype(str)
                     .str.replace(" EUR", "", case=False)
@@ -229,15 +228,12 @@ with st.sidebar:
                     .astype(float)
                 )
                 
-                # Las participaciones ya vienen con puntos como decimales (ej. 25.084)
-                # Reemplazamos la coma si viniera, pero mantenemos el punto nativo de Python
                 nuevo_df["Nº de participaciones"] = (
                     nuevo_df["Nº de participaciones"].astype(str)
                     .str.replace(",", ".")
                     .astype(float)
                 )
                 
-                # Precio implícito correcto = Importe / Unidades
                 nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
                 
                 sh_check = client.open_by_key(SPREADSHEET_ID)
@@ -247,7 +243,7 @@ with st.sidebar:
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
-                        key = (str(r.get("date", "")).strip(), str(r.get("isin", "")).strip(), round(float(r.get("amount", 0)), 2))
+                        key = (str(r.get("date", "")).strip(), str(r.get("isin", "")).strip(), round(float(str(r.get("amount", 0)).replace(",", ".")), 2))
                         registros_existentes.add(key)
                 
                 filas_para_subir = []
@@ -257,15 +253,18 @@ with st.sidebar:
                     f_orden = str(fila["Fecha de la orden"]).strip()
                     isin_clean = str(fila["ISIN"]).strip()
                     importe_val = round(float(fila["Importe estimado"]), 2)
-                    precio_val = round(float(fila["price"]), 2) # Redondeado a dos decimales exactos como tu tabla vieja
+                    precio_val = round(float(fila["price"]), 2)
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
                     llave_fila = (f_orden, isin_clean, importe_val)
                     duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
                     
-                    # Estructura limpia para Google Sheets
-                    filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
-                    resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val} €", "Estado": duplicado})
+                    # 🛠️ TRUCO MAESTRO: Forzar formato con coma regional para evitar pérdida de decimales en Sheets
+                    importe_str_es = f"{importe_val}".replace(".", ",")
+                    precio_str_es = f"{precio_val}".replace(".", ",")
+                    
+                    filas_para_subir.append([f_orden, importe_str_es, precio_str_es, nombre_fondo, isin_clean])
+                    resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
                 
                 df_resumen = pd.DataFrame(resumen_vista)
                 
@@ -341,8 +340,9 @@ price_map, hist_df = load_prices()
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
 
-df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
-df["price"] = pd.to_numeric(df["price"], errors="coerce")
+# Limpieza adaptativa al leer de Sheets
+df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
+df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
 df["date"] = df["date"].dt.date
 
