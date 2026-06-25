@@ -497,7 +497,7 @@ with kpi4:
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
-    "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "🧩 Distribución", "🔍 Detalle de Aportaciones"
+    "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "⚖️ Distribución", "🔍 Detalle de Aportaciones"
 ])
 
 # TAB 1: RESUMEN DE FONDOS
@@ -572,27 +572,41 @@ with tab_detalles:
     render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
 
 with tab_distribucion:
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-bottom: 20px;'>⚖️ Composición actual de la cartera</h3>", unsafe_allow_html=True)
-    
     import plotly.express as px
+    
+    # 🎨 Paleta de colores Premium (Estilo financiero/tecnológico)
+    colores_premium = ["#3b82f6", "#10b981", "#6366f1", "#8b5cf6", "#f43f5e", "#06b6d4", "#f59e0b"]
     
     fig_pie = px.pie(
         datos_circular, 
         values="Valor actual", 
         names="Fondo",
-        hole=0.4, # Esto lo hace tipo "donut", que queda más moderno
-        color_discrete_sequence=px.colors.qualitative.Plotly
+        hole=0.55,  # Un donut más estilizado y esbelto
+        color_discrete_sequence=colores_premium
     )
     
     fig_pie.update_layout(
         template="plotly_dark",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-        margin=dict(t=0, b=0, l=0, r=0)
+        showlegend=False,  # ❌ Adiós a la leyenda fea e innecesaria
+        margin=dict(t=30, b=30, l=10, r=10),
+        height=450  # Controlamos la altura para que no se desproporcione
     )
     
-    fig_pie.update_traces(textinfo='percent+label', textposition='outside')
+    # ✨ Configuración limpia de etiquetas internas de alto contraste
+    fig_pie.update_traces(
+        textinfo='percent+label', 
+        textposition='inside',  # 📥 Todo el texto limpio dentro de las porciones
+        insidetextorientation='radial',  # Orienta el texto siguiendo la curva del donut
+        textfont=dict(size=13, color="#ffffff", family="Inter, sans-serif"),
+        marker=dict(
+            line=dict(color='#0f172a', width=3)  # Línea de separación del color de tu fondo stApp
+        ),
+        hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Porcentaje: %{percent}<extra></extra>"
+    )
     
-    st.plotly_chart(fig_pie, use_container_width=True)
+    # Un contenedor centrado para que luzca imponente
+    _, col_centro, _ = st.columns([1, 2, 1])
+    with col_centro:
+        st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
