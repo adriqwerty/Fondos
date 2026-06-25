@@ -71,12 +71,12 @@ st.markdown("""
     /* Pestañas (Tabs) estilo Hub Financiero */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
-        font-size: 16px !important; 
+        font-size: 20px !important; 
         font-weight: 500 !important;
     }
     button[aria-selected="true"] p {
         color: #3b82f6 !important; 
-        font-size: 16px !important; 
+        font-size: 20px !important; 
         font-weight: 700 !important; 
     }
     div[data- things="tab-border"] {
