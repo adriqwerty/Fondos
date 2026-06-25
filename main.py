@@ -307,7 +307,7 @@ with st.sidebar:
                             st.sidebar.warning("⚠️ No hay filas nuevas que subir. Todas ya existen.")
                         else:
                             with st.spinner(f"Subiendo {len(filas_para_subir)} registros nuevos..."):
-                                ws_check.append_rows(filas_para_subir, value_input_option="RAW")
+                                ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
                                 st.sidebar.success(f"¡{len(filas_para_subir)} filas subidas con éxito!")
                                 st.cache_data.clear()
                                 st.rerun()
