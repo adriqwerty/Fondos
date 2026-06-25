@@ -530,6 +530,7 @@ with tab_resumen:
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
 # TAB 2: GRÁFICOS
+# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -537,17 +538,115 @@ with tab_graficos:
     portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
 
     col_g1, col_g2 = st.columns(2)
+    
     with col_g1:
         fig1 = go.Figure()
-        fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["invested"], name="Invertido", mode="lines", line=dict(color="#64748b", width=2)))
-        fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["value"], name="Valor cartera", mode="lines", line=dict(color="#3b82f6", width=3)))
-        fig1.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
-        st.plotly_chart(fig1, use_container_width=True)
+        
+        # 📉 Línea de Capital Invertido (Sutil, como referencia de suelo)
+        fig1.add_trace(go.Scatter(
+            x=portfolio_graph["date"], 
+            y=portfolio_graph["invested"], 
+            name="Invertido", 
+            mode="lines", 
+            line=dict(color="#64748b", width=1.5, dash="dash") # Línea discontinua elegante
+        ))
+        
+        # 🚀 Línea de Valor de Cartera con Relleno de Área Premium
+        fig1.add_trace(go.Scatter(
+            x=portfolio_graph["date"], 
+            y=portfolio_graph["value"], 
+            name="Valor Cartera", 
+            mode="lines", 
+            line=dict(color="#3b82f6", width=3),
+            fill='tozeroy', # Rellena hacia el eje X
+            fillcolor='rgba(59, 130, 246, 0.08)' # Azul translúcido muy elegante
+        ))
+        
+        fig1.update_layout(
+            title=dict(text="Evolución del Valor Total", font=dict(size=14, color="#cbd5e1", weight="bold")),
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=20, r=20, t=50, b=20),
+            height=450,
+            hovermode="x unified", # Junta todas las métricas en un único cuadro flotante al pasar el ratón
+            
+            # 📅 Selectores de rango temporal estilo terminal financiera
+            xaxis=dict(
+                showgrid=True,
+                gridcolor="#1e293b",
+                showspikes=True, # Punto de mira horizontal/vertical
+                spikecolor="#3b82f6",
+                spikethickness=1,
+                spikemode="across",
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(step="all", label="TODO")
+                    ]),
+                    bgcolor="#1e293b",
+                    activebgcolor="#3b82f6",
+                    font=dict(color="#f8fafc", size=11)
+                )
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="#1e293b",
+                tickformat=",..2f", # Formato de miles y decimales limpio
+                suffix=" €"
+            )
+        )
+        st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
+
     with col_g2:
         fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["profit"], name="Beneficio", mode="lines", line=dict(color="#10b981", width=2.5)))
-        fig2.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
-        st.plotly_chart(fig2, use_container_width=True)
+        
+        # 📈 Línea de Beneficio Neto con Área Esmeralda
+        fig2.add_trace(go.Scatter(
+            x=portfolio_graph["date"], 
+            y=portfolio_graph["profit"], 
+            name="Beneficio Neto", 
+            mode="lines", 
+            line=dict(color="#10b981", width=3),
+            fill='tozeroy',
+            fillcolor='rgba(16, 185, 129, 0.06)' # Verde translúcido sutil
+        ))
+        
+        fig2.update_layout(
+            title=dict(text="Evolución de la Ganancia Neta", font=dict(size=14, color="#cbd5e1", weight="bold")),
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=20, r=20, t=50, b=20),
+            height=450,
+            hovermode="x unified",
+            xaxis=dict(
+                showgrid=True,
+                gridcolor="#1e293b",
+                showspikes=True,
+                spikecolor="#10b981",
+                spikethickness=1,
+                spikemode="across",
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(step="all", label="TODO")
+                    ]),
+                    bgcolor="#1e293b",
+                    activebgcolor="#10b981",
+                    font=dict(color="#f8fafc", size=11)
+                )
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="#1e293b",
+                tickformat=",..2f",
+                suffix=" €"
+            )
+        )
+        st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
