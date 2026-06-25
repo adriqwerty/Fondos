@@ -5,11 +5,10 @@ import streamlit as st
 import plotly.graph_objects as go
 
 # ==========================================================
-# 🌌 INTERFAZ COMPLETA EN MODO OSCURO TRABAJADA (CSS PREMIUM)
+# 🌌 INTERFAZ COMPLETA EN MODO OSCURO (CSS PREMIUM)
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS global
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
@@ -93,7 +92,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎨 HOJA DE ESTILOS PARA LAS TABLAS HTML
 st.markdown("""
     <style>
     .financial-table-container {
@@ -202,7 +200,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ========================================================
-# SIDEBAR CON TRATAMIENTO DE DATOS LIMPIO Y SEGURO (FLOATS)
+# SIDEBAR CON PROCESAMIENTO AISLADO PARA NUEVO CSV
 # ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -221,20 +219,18 @@ with st.sidebar:
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
-                # Limpieza robusta de cadenas: quitamos espacios, miles innecesarios y homogeneizamos
+                # Tratamiento seguro EXCLUSIVO para la lectura del nuevo CSV
                 nuevo_df["Importe estimado"] = (
                     nuevo_df["Importe estimado"].astype(str)
                     .str.replace(" EUR", "", case=False)
-                    .str.replace(" ", "")
-                    .str.replace(".", "") # Eliminamos puntos de miles si existieran
-                    .str.replace(",", ".") # Cambiamos coma decimal a punto de Python
+                    .str.strip()
+                    .str.replace(",", ".")
                     .astype(float)
                 )
                 
                 nuevo_df["Nº de participaciones"] = (
                     nuevo_df["Nº de participaciones"].astype(str)
-                    .str.replace(" ", "")
-                    .str.replace(".", "")
+                    .str.strip()
                     .str.replace(",", ".")
                     .astype(float)
                 )
@@ -257,7 +253,7 @@ with st.sidebar:
                         isin_norm = str(r.get("isin", "")).strip()
                         
                         try:
-                            amount_raw = str(r.get("amount", "0")).replace(" ", "").replace(".", "").replace(",", ".")
+                            amount_raw = str(r.get("amount", "0")).replace(",", ".")
                             importe_norm = round(float(amount_raw), 2)
                         except:
                             importe_norm = 0.0
@@ -276,7 +272,7 @@ with st.sidebar:
                         
                     isin_clean = str(fila["ISIN"]).strip()
                     importe_val = round(float(fila["Importe estimado"]), 2)
-                    precio_val = round(float(fila["price"]), 4) # Guardamos precisión en el precio
+                    precio_val = round(float(fila["price"]), 4)
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
                     llave_fila = (f_orden_norm, isin_clean, importe_val)
@@ -284,7 +280,7 @@ with st.sidebar:
                     duplicado = "⚠️ Ya existe" if es_duplicado else "✅ Nueva"
                     
                     if not es_duplicado:
-                        # 🛠️ ENVIAR COMO FLOATS NATIVOS (No strings con comas ni puntos fijos)
+                        # Mandamos floats nativos sin procesar como cadenas
                         filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
                         
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
@@ -301,7 +297,6 @@ with st.sidebar:
                             st.sidebar.warning("⚠️ No hay filas nuevas que subir. Todas ya existen.")
                         else:
                             with st.spinner(f"Subiendo {len(filas_para_subir)} registros nuevos..."):
-                                # 🛠️ CONFIGURACIÓN CRÍTICA: USER_ENTERED con Floats puros de Python hace que Sheets reconozca el número nativo y aplique el formato regional de tu cuenta (con coma o punto automáticamente) sin romper las celdas.
                                 ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
                                 st.sidebar.success(f"¡{len(filas_para_subir)} filas subidas con éxito!")
                                 st.cache_data.clear()
@@ -324,9 +319,9 @@ with st.sidebar:
 
 cfg = SHEETS_MAP[usuario]
 
-# ==========================================
-# CARGA DE DATOS PRINCIPALES DE LA APP
-# ==========================================
+# ========================================================
+# RESTAURACIÓN HISTÓRICA COMPLETA DE LECTURA (VOLVEMOS A LO SEGURO)
+# ========================================================
 @st.cache_data(ttl=300)
 def load_aportaciones(sheet_name):
     sh = client.open_by_key(SPREADSHEET_ID)
@@ -351,7 +346,8 @@ def load_prices():
     ws = sh.worksheet("HistoricoVL")
     data = ws.get_all_values()
     df = pd.DataFrame(data[1:], columns=data[0])
-    df["vl"] = df["vl"].astype(str).str.replace(" ", "").replace(".", "").str.replace(",", ".").astype(float)
+    # REGRESO ALREMPLAZO ORIGINAL SEGURO (Solo comas por puntos, SIN tocar los puntos ya existentes)
+    df["vl"] = df["vl"].astype(str).str.replace(",", ".").astype(float)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date", "vl", "isin"])
     df = df.sort_values(["isin", "date"])
@@ -359,7 +355,7 @@ def load_prices():
     return dict(zip(latest["isin"], latest["vl"])), df
 
 # ==========================================
-# PROCESAMIENTO Y LÓGICA GENERAL
+# PROCESAMIENTO Y RENDIMIENTO EN CADENA
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
@@ -367,8 +363,9 @@ price_map, hist_df = load_prices()
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
 
-df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(" ", "").str.replace(".", "").str.replace(",", "."), errors="coerce")
-df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(" ", "").str.replace(".", "").str.replace(",", "."), errors="coerce")
+# Formateo de carga seguro original para no romper los registros del Sheets
+df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
+df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
 df["date"] = df["date"].dt.date
 
@@ -453,7 +450,7 @@ portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 last = portfolio.iloc[-2]
 
 # ==========================================
-# TARJETAS DE MÉTRICAS VISUALES
+# VISTA GENERAL Y PANELES
 # ==========================================
 st.markdown("<h3 style='font-size: 20px; font-weight: 700; color: #f8fafc; margin-top: 5px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
