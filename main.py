@@ -207,7 +207,7 @@ def render_financial_table(df_styled, cols_color_render=None):
 
 
 # ==========================================================
-# FUNCIÓN COMPONENTE: PROCESADOR DE CSV CORREGIDO
+# FUNCIÓN COMPONENTE: PROCESADOR DE CSV CORREGIDO INTEGRALMENTE
 # ==========================================================
 def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
     try:
@@ -242,22 +242,23 @@ def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
         # Calcular precio implícito (Precio = Importe / Participaciones)
         nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
         
-        # AJUSTE DE ORDEN EXACTO PARA GOOGLE SHEETS: [amount, price, date, isin]
-        # De acuerdo a la asignación de tu script: 
-        # df["amount"] (Col A), df["price"] (Col B), df["date"] (Col C), df["isin"] (Col D)
+        # FILAS ALINEADAS CON EL ORDEN EXACTO QUE USA TU BASE DE DATOS:
+        # Columna A: Fecha | Columna B: Importe | Columna C: Precio | Columna D: Fondo (Vacio) | Columna E: ISIN
         filas_finales = []
         for _, fila in nuevo_df.iterrows():
             registro = [
-                float(fila["Importe estimado"]), # Col A: amount
-                round(float(fila["price"]), 4),  # Col B: price
-                str(fila["Fecha de la orden"]),  # Col C: date
-                str(fila["ISIN"])                # Col D: isin
+                str(fila["Fecha de la orden"]),                     # Col A: Fecha
+                str(round(float(fila["Importe estimado"]), 2)),     # Col B: Importe (Pasado como texto limpio)
+                str(round(float(fila["price"]), 4)),                # Col C: Precio (Pasado como texto limpio)
+                "",                                                 # Col D: Hueco para el Nombre de Fondo (vacío)
+                str(fila["ISIN"]).strip()                           # Col E: ISIN
             ]
             filas_finales.append(registro)
             
         if len(filas_finales) > 0:
             sh = client.open_by_key(spreadsheet_id)
             ws = sh.worksheet(sheet_name)
+            # Subir de golpe al final de la tabla
             ws.append_rows(filas_finales, value_input_option="USER_ENTERED")
             return True
         else:
