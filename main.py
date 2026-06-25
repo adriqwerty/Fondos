@@ -529,7 +529,7 @@ with tab_resumen:
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
-# TAB 2: GRÁFICOS (VERSIÓN INTEGRAL ANTIFALLOS)
+# TAB 2: GRÁFICOS (VERSIÓN PRO CON AUTO-ZOOM Y CENTRADO)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -541,14 +541,16 @@ with tab_graficos:
     with col_g1:
         fig1 = go.Figure()
         
+        # Invertido (Referencia)
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["invested"], 
             name="Invertido", 
             mode="lines", 
-            line=dict(color="#64748b", width=1.5, dash="dash")
+            line=dict(color="rgba(148, 163, 184, 0.5)", width=1.5, dash="dot")
         ))
         
+        # Valor Real (Principal)
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["value"], 
@@ -556,7 +558,7 @@ with tab_graficos:
             mode="lines", 
             line=dict(color="#3b82f6", width=3),
             fill='tozeroy', 
-            fillcolor='rgba(59, 130, 246, 0.08)' 
+            fillcolor='rgba(59, 130, 246, 0.05)' 
         ))
         
         fig1.update_layout(
@@ -564,16 +566,17 @@ with tab_graficos:
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=20, r=20, t=50, b=20),
+            margin=dict(l=10, r=10, t=50, b=10),
             height=450,
-            hovermode="x unified", 
-            xaxis=dict(
-                showgrid=True,
-                gridcolor="#1e293b"
-            ),
+            hovermode="x unified",
+            xaxis=dict(showgrid=False),
+            # 🎯 EL TRUCO DEL CENTRADO: autorange=True y rangemode='normal' (no fuerza el cero)
             yaxis=dict(
-                showgrid=True,
-                gridcolor="#1e293b"
+                showgrid=True, 
+                gridcolor="rgba(51, 65, 85, 0.5)",
+                autorange=True,
+                fixedrange=False,
+                rangemode='normal' # 👈 Esto elimina el espacio vacío hasta el cero
             )
         )
         st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
@@ -581,6 +584,7 @@ with tab_graficos:
     with col_g2:
         fig2 = go.Figure()
         
+        # Ganancia Neta
         fig2.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["profit"], 
@@ -588,7 +592,7 @@ with tab_graficos:
             mode="lines", 
             line=dict(color="#10b981", width=3),
             fill='tozeroy',
-            fillcolor='rgba(16, 185, 129, 0.06)' 
+            fillcolor='rgba(16, 185, 129, 0.05)' 
         ))
         
         fig2.update_layout(
@@ -596,16 +600,15 @@ with tab_graficos:
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=20, r=20, t=50, b=20),
+            margin=dict(l=10, r=10, t=50, b=10),
             height=450,
             hovermode="x unified",
-            xaxis=dict(
-                showgrid=True,
-                gridcolor="#1e293b"
-            ),
+            xaxis=dict(showgrid=False),
             yaxis=dict(
-                showgrid=True,
-                gridcolor="#1e293b"
+                showgrid=True, 
+                gridcolor="rgba(51, 65, 85, 0.5)",
+                autorange=True,
+                rangemode='normal'
             )
         )
         st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
