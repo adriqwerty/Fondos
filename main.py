@@ -336,7 +336,7 @@ cfg = SHEETS_MAP[usuario]
 def load_aportaciones(sheet_name):
     sh = client.open_by_key(SPREADSHEET_ID)
     ws = sh.worksheet(sheet_name)
-    df_data = pd.DataFrame(ws.get_all_records())
+    df_data = pd.DataFrame(ws.get_all_values())
     
     if not df_data.empty:
         if "amount" in df_data.columns:
