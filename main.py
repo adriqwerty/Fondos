@@ -536,12 +536,15 @@ with tab_graficos:
     portfolio_graph = dense_filtered.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date")
     portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
 
+    # 🎯 Calculamos un suelo dinámico (el valor mínimo menos un 2% de margen)
+    val_min = min(portfolio_graph["value"].min(), portfolio_graph["invested"].min())
+    suelo_grafico = val_min * 0.98 
+
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
         fig1 = go.Figure()
         
-        # Invertido (Referencia)
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["invested"], 
@@ -550,14 +553,13 @@ with tab_graficos:
             line=dict(color="rgba(148, 163, 184, 0.5)", width=1.5, dash="dot")
         ))
         
-        # Valor Real (Principal)
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["value"], 
             name="Valor Cartera", 
             mode="lines", 
             line=dict(color="#3b82f6", width=3),
-            fill='tozeroy', 
+            fill='tonexty', # Rellena de forma elegante entre las líneas
             fillcolor='rgba(59, 130, 246, 0.05)' 
         ))
         
@@ -566,17 +568,14 @@ with tab_graficos:
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=50, b=10),
+            margin=dict(l=15, r=15, t=50, b=15),
             height=450,
             hovermode="x unified",
             xaxis=dict(showgrid=False),
-            # 🎯 EL TRUCO DEL CENTRADO: autorange=True y rangemode='normal' (no fuerza el cero)
             yaxis=dict(
                 showgrid=True, 
-                gridcolor="rgba(51, 65, 85, 0.5)",
-                autorange=True,
-                fixedrange=False,
-                rangemode='normal' # 👈 Esto elimina el espacio vacío hasta el cero
+                gridcolor="rgba(51, 65, 85, 0.4)",
+                range=[suelo_grafico, portfolio_graph["value"].max() * 1.02] # 👈 Forzamos el rango óptimo
             )
         )
         st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
