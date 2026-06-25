@@ -200,7 +200,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ========================================================
-# SIDEBAR CON PROCESAMIENTO AISLADO PARA NUEVO CSV
+# SIDEBAR CON FORMATEO EXTRICTO DE FLOATS NATIVOS
 # ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -219,7 +219,6 @@ with st.sidebar:
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
-                # Tratamiento seguro EXCLUSIVO para la lectura del nuevo CSV
                 nuevo_df["Importe estimado"] = (
                     nuevo_df["Importe estimado"].astype(str)
                     .str.replace(" EUR", "", case=False)
@@ -280,8 +279,14 @@ with st.sidebar:
                     duplicado = "⚠️ Ya existe" if es_duplicado else "✅ Nueva"
                     
                     if not es_duplicado:
-                        # Mandamos floats nativos sin procesar como cadenas
-                        filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
+                        # 🛠️ SOLUCIÓN: Forzamos la extracción a floats primitivos de Python antes de pasarlo a gspread
+                        filas_para_subir.append([
+                            f_orden, 
+                            float(importe_val), 
+                            float(precio_val), 
+                            nombre_fondo, 
+                            isin_clean
+                        ])
                         
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
                 
@@ -319,9 +324,9 @@ with st.sidebar:
 
 cfg = SHEETS_MAP[usuario]
 
-# ========================================================
-# RESTAURACIÓN HISTÓRICA COMPLETA DE LECTURA (VOLVEMOS A LO SEGURO)
-# ========================================================
+# ==========================================
+# LECTURA DE DATOS SEGUROS
+# ==========================================
 @st.cache_data(ttl=300)
 def load_aportaciones(sheet_name):
     sh = client.open_by_key(SPREADSHEET_ID)
@@ -346,7 +351,6 @@ def load_prices():
     ws = sh.worksheet("HistoricoVL")
     data = ws.get_all_values()
     df = pd.DataFrame(data[1:], columns=data[0])
-    # REGRESO ALREMPLAZO ORIGINAL SEGURO (Solo comas por puntos, SIN tocar los puntos ya existentes)
     df["vl"] = df["vl"].astype(str).str.replace(",", ".").astype(float)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date", "vl", "isin"])
@@ -355,7 +359,7 @@ def load_prices():
     return dict(zip(latest["isin"], latest["vl"])), df
 
 # ==========================================
-# PROCESAMIENTO Y RENDIMIENTO EN CADENA
+# PROCESAMIENTO Y LÓGICA GENERAL
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
@@ -363,7 +367,6 @@ price_map, hist_df = load_prices()
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
 
-# Formateo de carga seguro original para no romper los registros del Sheets
 df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
 df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
