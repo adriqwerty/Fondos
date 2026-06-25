@@ -574,14 +574,14 @@ with tab_detalles:
 with tab_distribucion:
     import plotly.express as px
     
-    # 🎨 Paleta de colores Premium (Estilo financiero/tecnológico)
-    colores_premium = ["#3b82f6", "#10b981", "#6366f1", "#8b5cf6", "#f43f5e", "#06b6d4", "#f59e0b"]
+    # 🎨 Paleta con degradados visuales simulados (tonos vivos con alto contraste)
+    colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
     
     fig_pie = px.pie(
         datos_circular, 
         values="Valor actual", 
         names="Fondo",
-        hole=0.55,  # Un donut más estilizado y esbelto
+        hole=0.40,  # Reducimos el agujero para que haya más masa de color y se aprecie el efecto volumétrico
         color_discrete_sequence=colores_premium
     )
     
@@ -589,24 +589,31 @@ with tab_distribucion:
         template="plotly_dark",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,  # ❌ Adiós a la leyenda fea e innecesaria
-        margin=dict(t=30, b=30, l=10, r=10),
-        height=450  # Controlamos la altura para que no se desproporcione
+        showlegend=False,
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=600  # 🚀 ¡Más grande! Subimos de 450px a 600px para que domine la pantalla
     )
     
-    # ✨ Configuración limpia de etiquetas internas de alto contraste
+    # ✨ Efectos volumétricos y sombreado premium
     fig_pie.update_traces(
         textinfo='percent+label', 
-        textposition='inside',  # 📥 Todo el texto limpio dentro de las porciones
-        insidetextorientation='radial',  # Orienta el texto siguiendo la curva del donut
-        textfont=dict(size=13, color="#ffffff", family="Inter, sans-serif"),
+        textposition='inside',
+        insidetextorientation='radial',
+        textfont=dict(size=14, color="#ffffff", family="Inter, sans-serif", weight="bold"),
+        
+        # 🌟 EL TRUCO DEL EFECTO 3D: Sombreado interno y bordes de profundidad
         marker=dict(
-            line=dict(color='#0f172a', width=3)  # Línea de separación del color de tu fondo stApp
+            line=dict(color='#0b111e', width=4),  # Líneas de división oscuras que hunden el diseño
+            colors=colores_premium
         ),
+        
+        # Pull sutil: Separa ligeramente las porciones hacia afuera dando volumen de explosión 3D
+        pull=[0.03] * len(datos_circular), 
+        
         hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Porcentaje: %{percent}<extra></extra>"
     )
     
-    # Un contenedor centrado para que luzca imponente
-    _, col_centro, _ = st.columns([1, 2, 1])
-    with col_centro:
+    # Renderizado usando una columna central mucho más ancha para maximizar el tamaño
+    _, col_grande, _ = st.columns([0.3, 3.4, 0.3])
+    with col_grande:
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
