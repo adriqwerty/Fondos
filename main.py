@@ -490,7 +490,7 @@ with kpi4:
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
-    "📋 Resumen", "📈 Gráficos", "📊 Historial", "🥧 Distribución", "🔍 Aportaciones"
+    "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "🔍 Detalle de Aportaciones"
 ])
 
 # TAB 1: RESUMEN DE FONDOS
