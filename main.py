@@ -530,7 +530,7 @@ with tab_resumen:
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
 # TAB 2: GRÁFICOS
-# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - CORREGIDA SIN COMENTARIOS INTERNOS)
+# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - ULTRA COMPATIBLE)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -589,8 +589,7 @@ with tab_graficos:
             yaxis=dict(
                 showgrid=True,
                 gridcolor="#1e293b",
-                tickformat=",..2f", 
-                suffix=" €"
+                suffix=" €" # Eliminamos tickformat conflictivo, dejamos que Plotly auto-formatee de forma segura
             )
         )
         st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
@@ -637,7 +636,6 @@ with tab_graficos:
             yaxis=dict(
                 showgrid=True,
                 gridcolor="#1e293b",
-                tickformat=",..2f",
                 suffix=" €"
             )
         )
