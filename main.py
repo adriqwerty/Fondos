@@ -202,7 +202,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ========================================================
-# SIDEBAR CON SUBIDA STR/RAW DE DECIMALES CON COMA ESPAÑOLA
+# SIDEBAR CON TRATAMIENTO DE DATOS LIMPIO Y SEGURO (FLOATS)
 # ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -221,15 +221,20 @@ with st.sidebar:
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
+                # Limpieza robusta de cadenas: quitamos espacios, miles innecesarios y homogeneizamos
                 nuevo_df["Importe estimado"] = (
                     nuevo_df["Importe estimado"].astype(str)
                     .str.replace(" EUR", "", case=False)
-                    .str.replace(",", ".")
+                    .str.replace(" ", "")
+                    .str.replace(".", "") # Eliminamos puntos de miles si existieran
+                    .str.replace(",", ".") # Cambiamos coma decimal a punto de Python
                     .astype(float)
                 )
                 
                 nuevo_df["Nº de participaciones"] = (
                     nuevo_df["Nº de participaciones"].astype(str)
+                    .str.replace(" ", "")
+                    .str.replace(".", "")
                     .str.replace(",", ".")
                     .astype(float)
                 )
@@ -240,7 +245,6 @@ with st.sidebar:
                 ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
                 datos_actuales = pd.DataFrame(ws_check.get_all_records())
                 
-                # Mapeo invariable de datos existentes (CANDADO INVARIABLE)
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
@@ -253,7 +257,7 @@ with st.sidebar:
                         isin_norm = str(r.get("isin", "")).strip()
                         
                         try:
-                            amount_raw = str(r.get("amount", "0")).replace(",", ".")
+                            amount_raw = str(r.get("amount", "0")).replace(" ", "").replace(".", "").replace(",", ".")
                             importe_norm = round(float(amount_raw), 2)
                         except:
                             importe_norm = 0.0
@@ -272,19 +276,16 @@ with st.sidebar:
                         
                     isin_clean = str(fila["ISIN"]).strip()
                     importe_val = round(float(fila["Importe estimado"]), 2)
-                    precio_val = round(float(fila["price"]), 2)
+                    precio_val = round(float(fila["price"]), 4) # Guardamos precisión en el precio
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
                     llave_fila = (f_orden_norm, isin_clean, importe_val)
                     es_duplicado = llave_fila in registros_existentes
                     duplicado = "⚠️ Ya existe" if es_duplicado else "✅ Nueva"
                     
-                    # 🛠️ CORRECCIÓN DEFINITIVA: Forzamos texto con comas e ingresamos en modo RAW
-                    importe_str_es = f"{importe_val:.2f}".replace(".", ",")
-                    precio_str_es = f"{precio_val:.2f}".replace(".", ",")
-                    
                     if not es_duplicado:
-                        filas_para_subir.append([f_orden, importe_str_es, precio_str_es, nombre_fondo, isin_clean])
+                        # 🛠️ ENVIAR COMO FLOATS NATIVOS (No strings con comas ni puntos fijos)
+                        filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
                         
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
                 
@@ -300,8 +301,8 @@ with st.sidebar:
                             st.sidebar.warning("⚠️ No hay filas nuevas que subir. Todas ya existen.")
                         else:
                             with st.spinner(f"Subiendo {len(filas_para_subir)} registros nuevos..."):
-                                # 🛠️ Cambiamos value_input_option a "RAW" para que Sheets respete el texto con comas como número nativo local
-                                ws_check.append_rows(filas_para_subir, value_input_option="RAW")
+                                # 🛠️ CONFIGURACIÓN CRÍTICA: USER_ENTERED con Floats puros de Python hace que Sheets reconozca el número nativo y aplique el formato regional de tu cuenta (con coma o punto automáticamente) sin romper las celdas.
+                                ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
                                 st.sidebar.success(f"¡{len(filas_para_subir)} filas subidas con éxito!")
                                 st.cache_data.clear()
                                 st.rerun()
@@ -350,7 +351,7 @@ def load_prices():
     ws = sh.worksheet("HistoricoVL")
     data = ws.get_all_values()
     df = pd.DataFrame(data[1:], columns=data[0])
-    df["vl"] = df["vl"].astype(str).str.replace(",", ".").astype(float)
+    df["vl"] = df["vl"].astype(str).str.replace(" ", "").replace(".", "").str.replace(",", ".").astype(float)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date", "vl", "isin"])
     df = df.sort_values(["isin", "date"])
@@ -366,8 +367,8 @@ price_map, hist_df = load_prices()
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
 
-df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
-df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
+df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(" ", "").str.replace(".", "").str.replace(",", "."), errors="coerce")
+df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(" ", "").str.replace(".", "").str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
 df["date"] = df["date"].dt.date
 
