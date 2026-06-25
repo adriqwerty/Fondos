@@ -490,7 +490,7 @@ with kpi4:
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
-    "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "🔍 Detalle de Aportaciones"
+    "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "🧩 Distribución", "🔍 Detalle de Aportaciones"
 ])
 
 # TAB 1: RESUMEN DE FONDOS
@@ -538,31 +538,7 @@ with tab_evolucion:
     df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
     render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
 
-with tab_distribucion:
-    st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-bottom: 20px;'>⚖️ Composición actual de la cartera</h3>", unsafe_allow_html=True)
-    
-    import plotly.express as px
-    
-    fig_pie = px.pie(
-        datos_circular, 
-        values="Valor actual", 
-        names="Fondo",
-        hole=0.4, # Esto lo hace tipo "donut", que queda más moderno
-        color_discrete_sequence=px.colors.qualitative.Plotly
-    )
-    
-    fig_pie.update_layout(
-        template="plotly_dark",
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-        margin=dict(t=0, b=0, l=0, r=0)
-    )
-    
-    fig_pie.update_traces(textinfo='percent+label', textposition='outside')
-    
-    st.plotly_chart(fig_pie, use_container_width=True)
+
 
 # TAB 4: DETALLE DE APORTACIONES
 with tab_detalles:
