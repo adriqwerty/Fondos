@@ -465,6 +465,8 @@ portfolio = portfolio.dropna(subset=["value"])
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
+portfolio["1d (€)"] = portfolio["value"].diff(1)  # 👈 Calculamos la diferencia en euros de hoy vs ayer
+
 
 last = portfolio.iloc[-2]
 
@@ -490,10 +492,23 @@ with kpi3:
     color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
     st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
 with kpi4:
-    color_var = "#10b981" if last["1d (%)"] >= 0 else "#f43f5e"
-    signo = "+" if last["1d (%)"] >= 0 else ""
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{last["1d (%)"]:.2f} %</p></div>', unsafe_allow_html=True)
-
+    # Extraemos los valores diarios calculados
+    var_porcentaje = last["1d (%)"]
+    var_euros = last["1d (€)"]
+    
+    # Decidimos color y signo dinámico
+    color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
+    signo = "+" if var_porcentaje >= 0 else ""
+    
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">
+                {signo}{var_euros:,.2f} € 
+                <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">({signo}{var_porcentaje:.2f}%)</span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
