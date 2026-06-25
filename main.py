@@ -452,7 +452,7 @@ with tab_evolucion:
 
 # TAB 4: DETALLE DE APORTACIONES (Selector oscurecido correctamente)
 with tab_detalles:
-    st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
+    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     
     col_select, _ = st.columns([1.5, 2])
     with col_select:
