@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS global (Sidebar, Inputs, Selectores, Contenedores y File Uploader)
+# Inyección de CSS global
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
@@ -19,12 +19,10 @@ st.markdown("""
         color: #f8fafc !important;
     }
     
-    /* Fondo principal de la app y Sidebar unificado */
     .stApp, div[data-testid="stSidebar"] {
         background-color: #0f172a !important;
     }
     
-    /* Tunear la barra lateral (Bordes y elementos) */
     div[data-testid="stSidebar"] {
         border-right: 1px solid #1e293b;
     }
@@ -34,7 +32,6 @@ st.markdown("""
     
     .main .block-container { padding-top: 1.5rem; }
     
-    /* 🎨 ARREGLO DE LOS SELECTBOX (DESPLEGABLES) Y SIDEBAR NATIVOS */
     div[data-baseweb="select"] {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
@@ -44,7 +41,6 @@ st.markdown("""
         color: #f8fafc !important; 
         background-color: transparent !important;
     }
-    /* Lista desplegada */
     ul[data-baseweb="menu"] {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
@@ -57,7 +53,6 @@ st.markdown("""
         background-color: #334155 !important; 
     }
     
-    /* Botones nativos en la barra lateral */
     div[data-testid="stSidebar"] button {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
@@ -68,7 +63,6 @@ st.markdown("""
         color: #3b82f6 !important;
     }
     
-    /* 🎨 TUNEAR CAJA DE SUBIDA DE ARCHIVOS (FILE UPLOADER) */
     div[data-testid="stFileUploader"] {
         background-color: #1e293b !important;
         border: 1px dashed #334155 !important;
@@ -82,7 +76,6 @@ st.markdown("""
         display: none !important; 
     }
     
-    /* Pestañas (Tabs) estilo Hub Financiero */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
         font-size: 20px !important; 
@@ -100,7 +93,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎨 HOJA DE ESTILOS PARA LAS TABLAS HTML (SIN ESPACIOS VACÍOS)
+# 🎨 HOJA DE ESTILOS PARA LAS TABLAS HTML
 st.markdown("""
     <style>
     .financial-table-container {
@@ -112,7 +105,6 @@ st.markdown("""
         margin-bottom: 25px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    
     table.financial-table {
         width: 100%;
         border-collapse: collapse;
@@ -120,12 +112,10 @@ st.markdown("""
         font-size: 14px;
         text-align: center;
     }
-    
     table.financial-table thead tr {
         background-color: #0f172a !important;
         border-bottom: 2px solid #334155;
     }
-    
     table.financial-table th {
         padding: 14px 16px;
         font-weight: 700;
@@ -134,40 +124,29 @@ st.markdown("""
         letter-spacing: 0.5px;
         color: #cbd5e1 !important;
     }
-    
     table.financial-table td {
         padding: 12px 16px;
         border-bottom: 1px solid #334155;
         font-weight: 500;
     }
-    
     table.financial-table tbody tr:last-child td {
         border-bottom: none;
     }
-    
     table.financial-table tbody tr:nth-of-type(even) {
         background-color: #1a2333;
     }
-    
     table.financial-table tbody tr:hover {
         background-color: #243146;
         transition: background-color 0.15s ease;
     }
-    
     .pos-val { color: #10b981 !important; font-weight: 700; }
     .neg-val { color: #f43f5e !important; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================================================
-# FUNCIÓN COMPONENTE: RENDERIZADOR OPTIMIZADO
-# ==========================================================
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    
-    html_table = f'<div class="financial-table-container">'
-    html_table += f'<table class="financial-table">'
-    html_table += '<thead><tr>'
+    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
@@ -175,20 +154,17 @@ def render_financial_table(df_styled, cols_color_render=None):
     for _, row in df_clean.iterrows():
         if row.astype(str).str.strip().eq("").all():
             continue
-            
         html_table += '<tr>'
         for col in df_clean.columns:
             val_str = str(row[col]).strip()
             if val_str == "nan" or val_str == "None":
                 val_str = ""
-                
             cell_class = ""
             if cols_color_render and col in cols_color_render and val_str:
                 if "-" in val_str:
                     cell_class = ' class="neg-val"'
                 elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
                     cell_class = ' class="pos-val"'
-            
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
@@ -200,15 +176,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 from actualizar_valores import actualizar_valores
 
-# ==========================================
-# CONEXIÓN GOOGLE SHEETS
-# ==========================================
 @st.cache_resource
 def connect_gsheets():
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=SCOPES
-    )
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
     return gspread.authorize(creds)
 
 client = connect_gsheets()
@@ -219,9 +189,6 @@ SHEETS_MAP = {
     "Arancha": {"aportaciones": "Aportaciones_C"}
 }
 
-# ==========================================================
-# CARGA DE AUXILIARES
-# ==========================================================
 @st.cache_data(ttl=300)
 def load_fondos_dict():
     try:
@@ -235,7 +202,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ==========================================
-# SIDEBAR ESTILIZADA CON FLUJO DE CONFIRMACIÓN
+# SIDEBAR ESTILIZADA CON CORRECCIÓN DE PRECIO
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -248,24 +215,35 @@ with st.sidebar:
     
     if archivo_csv is not None:
         try:
-            # 1. Procesar preventivamente en memoria el CSV
             nuevo_df = pd.read_csv(archivo_csv, sep=';')
             columnas_banco = ["Fecha de la orden", "ISIN", "Importe estimado", "Nº de participaciones"]
             
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
-                # Limpieza rápida de datos numericos
-                nuevo_df["Importe estimado"] = nuevo_df["Importe estimado"].astype(str).str.replace(" EUR", "", case=False).str.replace(".", "").str.replace(",", ".").astype(float)
-                nuevo_df["Nº de participaciones"] = nuevo_df["Nº de participaciones"].astype(str).str.replace(".", "").str.replace(",", ".").astype(float)
+                # 🛠️ CORRECCIÓN CRÍTICA DE TRATAMIENTO DE DECIMALES
+                nuevo_df["Importe estimado"] = (
+                    nuevo_df["Importe estimado"].astype(str)
+                    .str.replace(" EUR", "", case=False)
+                    .str.replace(",", ".")
+                    .astype(float)
+                )
+                
+                # Las participaciones ya vienen con puntos como decimales (ej. 25.084)
+                # Reemplazamos la coma si viniera, pero mantenemos el punto nativo de Python
+                nuevo_df["Nº de participaciones"] = (
+                    nuevo_df["Nº de participaciones"].astype(str)
+                    .str.replace(",", ".")
+                    .astype(float)
+                )
+                
+                # Precio implícito correcto = Importe / Unidades
                 nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
                 
-                # Cargar aportaciones existentes en Sheets para verificar duplicados
                 sh_check = client.open_by_key(SPREADSHEET_ID)
                 ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
                 datos_actuales = pd.DataFrame(ws_check.get_all_records())
                 
-                # Crear set de control de duplicados [(date, isin, amount)]
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
@@ -279,23 +257,21 @@ with st.sidebar:
                     f_orden = str(fila["Fecha de la orden"]).strip()
                     isin_clean = str(fila["ISIN"]).strip()
                     importe_val = round(float(fila["Importe estimado"]), 2)
-                    precio_val = round(float(fila["price"]), 4)
+                    precio_val = round(float(fila["price"]), 2) # Redondeado a dos decimales exactos como tu tabla vieja
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
-                    # Comprobar si ya existe
                     llave_fila = (f_orden, isin_clean, importe_val)
                     duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
                     
-                    filas_para_subir.append([f_orden, str(importe_val), str(precio_val), nombre_fondo, isin_clean])
+                    # Estructura limpia para Google Sheets
+                    filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val} €", "Estado": duplicado})
                 
                 df_resumen = pd.DataFrame(resumen_vista)
                 
-                # Mostrar el mini resumen pedido por el usuario
                 st.markdown("<p style='font-size: 13px; font-weight: 600; color: #cbd5e1; margin-top: 10px;'>📋 Resumen de carga detectado:</p>", unsafe_allow_html=True)
                 st.dataframe(df_resumen, use_container_width=True, hide_index=True)
                 
-                # Botones de Acción (Validar o Cancelar)
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("👍 Validar y Subir", use_container_width=True, type="primary"):
@@ -313,8 +289,6 @@ with st.sidebar:
             st.sidebar.error(f"Error al analizar el archivo temporal: {str(e)}")
 
     st.markdown("<hr style='border-color: #1e293b;'>", unsafe_allow_html=True)
-    st.markdown("<h2 style='font-size: 15px; font-weight: 600; color: #94a3b8; margin-bottom: 10px;'>⚙️ Sistema</h2>", unsafe_allow_html=True)
-    
     if st.button("🔄 Actualizar Cotizaciones", use_container_width=True):
         with st.spinner("Conectando con mercados..."):
             actualizar_valores()
