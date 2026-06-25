@@ -495,7 +495,7 @@ tab_resumen, tab_graficos, tab_evolucion, tab_detalles = st.tabs([
 
 # TAB 1: RESUMEN DE FONDOS
 with tab_resumen:
-    st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
+    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
     final_html = final.copy()
     final_html["Invertido"] = final_html["Invertido"].map("{:,.2f} €".format)
     final_html["Valor actual"] = final_html["Valor actual"].map("{:,.2f} €".format)
@@ -529,7 +529,7 @@ with tab_graficos:
 
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
-    st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
+    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
     df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
     df_evo_html = df_view_evo.copy()
     df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
@@ -540,7 +540,7 @@ with tab_evolucion:
 
 # TAB 4: DETALLE DE APORTACIONES
 with tab_detalles:
-    st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
+    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     col_select, _ = st.columns([1.5, 2])
     with col_select:
         fondo = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
