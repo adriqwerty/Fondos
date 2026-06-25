@@ -44,7 +44,7 @@ st.markdown("""
         color: #f8fafc !important; 
         background-color: transparent !important;
     }
-    /* Lista desplegada (Opciones flotantes del selectbox) */
+    /* Lista desplegada */
     ul[data-baseweb="menu"] {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
@@ -82,7 +82,7 @@ st.markdown("""
         display: none !important; 
     }
     
-    /* 📌 Pestañas (Tabs) estilo Hub Financiero - Tamaño Grande */
+    /* Pestañas (Tabs) estilo Hub Financiero */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
         font-size: 20px !important; 
@@ -121,7 +121,6 @@ st.markdown("""
         text-align: center;
     }
     
-    /* CABECERA PREMIUM OSCURA */
     table.financial-table thead tr {
         background-color: #0f172a !important;
         border-bottom: 2px solid #334155;
@@ -136,50 +135,43 @@ st.markdown("""
         color: #cbd5e1 !important;
     }
     
-    /* Celdas del cuerpo */
     table.financial-table td {
         padding: 12px 16px;
         border-bottom: 1px solid #334155;
         font-weight: 500;
     }
     
-    /* Eliminar borde de la última fila para evitar espacios extraños */
     table.financial-table tbody tr:last-child td {
         border-bottom: none;
     }
     
-    /* Alternancia de filas */
     table.financial-table tbody tr:nth-of-type(even) {
         background-color: #1a2333;
     }
     
-    /* Efecto Hover */
     table.financial-table tbody tr:hover {
         background-color: #243146;
         transition: background-color 0.15s ease;
     }
     
-    /* Formatos de rendimiento */
     .pos-val { color: #10b981 !important; font-weight: 700; }
     .neg-val { color: #f43f5e !important; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================================
-# FUNCIÓN COMPONENTE: RENDERIZADOR OPTIMIZADO (EVITA FILAS VACÍAS)
+# FUNCIÓN COMPONENTE: RENDERIZADOR OPTIMIZADO
 # ==========================================================
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
     html_table = f'<div class="financial-table-container">'
     html_table += f'<table class="financial-table">'
-    
     html_table += '<thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
-    html_table += '</tr></thead>'
+    html_table += '</tr></thead><tbody>'
     
-    html_table += '<tbody>'
     for _, row in df_clean.iterrows():
         if row.astype(str).str.strip().eq("").all():
             continue
@@ -187,12 +179,10 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '<tr>'
         for col in df_clean.columns:
             val_str = str(row[col]).strip()
-            
             if val_str == "nan" or val_str == "None":
                 val_str = ""
                 
             cell_class = ""
-            
             if cols_color_render and col in cols_color_render and val_str:
                 if "-" in val_str:
                     cell_class = ' class="neg-val"'
@@ -202,72 +192,7 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    
     st.write(html_table, unsafe_allow_html=True)
-
-
-# ==========================================================
-# FUNCIÓN COMPONENTE: PROCESADOR DE CSV CORREGIDO INTEGRALMENTE
-# ==========================================================
-def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
-    try:
-        # Leer usando punto y coma como separador
-        nuevo_df = pd.read_csv(uploaded_file, sep=';')
-        
-        # Validar columnas requeridas basadas en el archivo real
-        columnas_banco = ["Fecha de la orden", "ISIN", "Importe estimado", "Nº de participaciones"]
-        for col in columnas_banco:
-            if col not in nuevo_df.columns:
-                st.sidebar.error(f"❌ Estructura incorrecta. Falta la columna: '{col}'")
-                return False
-        
-        # Limpieza de importes y participaciones
-        nuevo_df["Importe estimado"] = (
-            nuevo_df["Importe estimado"]
-            .astype(str)
-            .str.replace(" EUR", "", case=False)
-            .str.replace(".", "")
-            .str.replace(",", ".")
-            .astype(float)
-        )
-        
-        nuevo_df["Nº de participaciones"] = (
-            nuevo_df["Nº de participaciones"]
-            .astype(str)
-            .str.replace(".", "")
-            .str.replace(",", ".")
-            .astype(float)
-        )
-        
-        # Calcular precio implícito (Precio = Importe / Participaciones)
-        nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
-        
-        # FILAS ALINEADAS CON EL ORDEN EXACTO QUE USA TU BASE DE DATOS:
-        # Columna A: Fecha | Columna B: Importe | Columna C: Precio | Columna D: Fondo (Vacio) | Columna E: ISIN
-        filas_finales = []
-        for _, fila in nuevo_df.iterrows():
-            registro = [
-                str(fila["Fecha de la orden"]),                     # Col A: Fecha
-                str(round(float(fila["Importe estimado"]), 2)),     # Col B: Importe (Pasado como texto limpio)
-                str(round(float(fila["price"]), 4)),                # Col C: Precio (Pasado como texto limpio)
-                "",                                                 # Col D: Hueco para el Nombre de Fondo (vacío)
-                str(fila["ISIN"]).strip()                           # Col E: ISIN
-            ]
-            filas_finales.append(registro)
-            
-        if len(filas_finales) > 0:
-            sh = client.open_by_key(spreadsheet_id)
-            ws = sh.worksheet(sheet_name)
-            # Subir de golpe al final de la tabla
-            ws.append_rows(filas_finales, value_input_option="USER_ENTERED")
-            return True
-        else:
-            st.sidebar.warning("⚠️ No se encontraron registros válidos.")
-            return False
-            
-    except Exception as e:
-        st.sidebar.error(f"❌ Error procesando el archivo: {str(e)}")
-        return False
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -294,38 +219,99 @@ SHEETS_MAP = {
     "Arancha": {"aportaciones": "Aportaciones_C"}
 }
 
+# ==========================================================
+# CARGA DE AUXILIARES
+# ==========================================================
+@st.cache_data(ttl=300)
+def load_fondos_dict():
+    try:
+        sh = client.open_by_key(SPREADSHEET_ID)
+        ws = sh.worksheet("Fondos")
+        df_f = pd.DataFrame(ws.get_all_records())
+        return dict(zip(df_f["isin"].astype(str).str.strip(), df_f["fondo"].astype(str).str.strip()))
+    except:
+        return {}
+
+isin_to_fund_global = load_fondos_dict()
+
 # ==========================================
-# SIDEBAR ESTILIZADA CON CARGADOR DE CSV
+# SIDEBAR ESTILIZADA CON FLUJO DE CONFIRMACIÓN
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
-    usuario = st.selectbox(
-        "Elige cartera",
-        ["Adrian", "Oscar", "Arancha"],
-        label_visibility="collapsed"
-    )
+    usuario = st.selectbox("Elige cartera", ["Adrian", "Oscar", "Arancha"], label_visibility="collapsed")
     
-    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
     st.markdown("<hr style='border-color: #1e293b;'>", unsafe_allow_html=True)
-    
-    # 📥 FUNCIONALIDAD: SUBIR CSV
     st.markdown("<h2 style='font-size: 15px; font-weight: 600; color: #f8fafc; margin-bottom: 5px;'>📥 Importar Órdenes CSV</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size: 12px; color: #94a3b8; margin-bottom: 12px;'>Sube el archivo de órdenes exportado de tu plataforma.</p>", unsafe_allow_html=True)
     
-    archivo_csv = st.file_uploader("Subir CSV", type=["csv"], label_visibility="collapsed")
+    archivo_csv = st.file_uploader("Subir CSV", type=["csv"], label_visibility="collapsed", key="uploader_csv")
     
     if archivo_csv is not None:
-        if st.button("🚀 Cargar Aportaciones", use_container_width=True):
-            with st.spinner("Procesando y subiendo a Google Sheets..."):
-                hoja_destino = SHEETS_MAP[usuario]["aportaciones"]
-                exito = procesar_y_subir_csv(archivo_csv, client, SPREADSHEET_ID, hoja_destino)
+        try:
+            # 1. Procesar preventivamente en memoria el CSV
+            nuevo_df = pd.read_csv(archivo_csv, sep=';')
+            columnas_banco = ["Fecha de la orden", "ISIN", "Importe estimado", "Nº de participaciones"]
+            
+            if not all(col in nuevo_df.columns for col in columnas_banco):
+                st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
+            else:
+                # Limpieza rápida de datos numericos
+                nuevo_df["Importe estimado"] = nuevo_df["Importe estimado"].astype(str).str.replace(" EUR", "", case=False).str.replace(".", "").str.replace(",", ".").astype(float)
+                nuevo_df["Nº de participaciones"] = nuevo_df["Nº de participaciones"].astype(str).str.replace(".", "").str.replace(",", ".").astype(float)
+                nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
                 
-                if exito:
-                    st.sidebar.success("✅ ¡Órdenes añadidas con éxito!")
-                    st.cache_data.clear()
-                    st.rerun()
+                # Cargar aportaciones existentes en Sheets para verificar duplicados
+                sh_check = client.open_by_key(SPREADSHEET_ID)
+                ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
+                datos_actuales = pd.DataFrame(ws_check.get_all_records())
+                
+                # Crear set de control de duplicados [(date, isin, amount)]
+                registros_existentes = set()
+                if not datos_actuales.empty and "isin" in datos_actuales.columns:
+                    for _, r in datos_actuales.iterrows():
+                        key = (str(r.get("date", "")).strip(), str(r.get("isin", "")).strip(), round(float(r.get("amount", 0)), 2))
+                        registros_existentes.add(key)
+                
+                filas_para_subir = []
+                resumen_vista = []
+                
+                for _, fila in nuevo_df.iterrows():
+                    f_orden = str(fila["Fecha de la orden"]).strip()
+                    isin_clean = str(fila["ISIN"]).strip()
+                    importe_val = round(float(fila["Importe estimado"]), 2)
+                    precio_val = round(float(fila["price"]), 4)
+                    nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
+                    
+                    # Comprobar si ya existe
+                    llave_fila = (f_orden, isin_clean, importe_val)
+                    duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
+                    
+                    filas_para_subir.append([f_orden, str(importe_val), str(precio_val), nombre_fondo, isin_clean])
+                    resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val} €", "Estado": duplicado})
+                
+                df_resumen = pd.DataFrame(resumen_vista)
+                
+                # Mostrar el mini resumen pedido por el usuario
+                st.markdown("<p style='font-size: 13px; font-weight: 600; color: #cbd5e1; margin-top: 10px;'>📋 Resumen de carga detectado:</p>", unsafe_allow_html=True)
+                st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+                
+                # Botones de Acción (Validar o Cancelar)
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("👍 Validar y Subir", use_container_width=True, type="primary"):
+                        with st.spinner("Subiendo registros limpios..."):
+                            ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
+                            st.sidebar.success("¡Operación completada con éxito!")
+                            st.cache_data.clear()
+                            st.rerun()
+                with c2:
+                    if st.button("❌ Cancelar", use_container_width=True):
+                        st.cache_data.clear()
+                        st.rerun()
+                        
+        except Exception as e:
+            st.sidebar.error(f"Error al analizar el archivo temporal: {str(e)}")
 
-    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
     st.markdown("<hr style='border-color: #1e293b;'>", unsafe_allow_html=True)
     st.markdown("<h2 style='font-size: 15px; font-weight: 600; color: #94a3b8; margin-bottom: 10px;'>⚙️ Sistema</h2>", unsafe_allow_html=True)
     
@@ -339,7 +325,7 @@ with st.sidebar:
 cfg = SHEETS_MAP[usuario]
 
 # ==========================================
-# CARGA DE DATOS
+# CARGA DE DATOS PRINCIPALES DE LA APP
 # ==========================================
 @st.cache_data(ttl=300)
 def load_aportaciones(sheet_name):
@@ -373,7 +359,7 @@ def load_prices():
     return dict(zip(latest["isin"], latest["vl"])), df
 
 # ==========================================
-# PROCESAMIENTO Y LÓGICA
+# PROCESAMIENTO Y LÓGICA GENERAL
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
@@ -467,7 +453,7 @@ portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 last = portfolio.iloc[-2]
 
 # ==========================================
-# TARJETAS DE MÉTRICAS
+# TARJETAS DE MÉTRICAS VISUALES
 # ==========================================
 st.markdown("<h3 style='font-size: 20px; font-weight: 700; color: #f8fafc; margin-top: 5px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -487,7 +473,6 @@ with kpi4:
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-# PESTAÑAS (TABS NATIVOS AGRANDADOS)
 tab_resumen, tab_graficos, tab_evolucion, tab_detalles = st.tabs([
     "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "🔍 Detalle de Aportaciones"
 ])
@@ -495,7 +480,6 @@ tab_resumen, tab_graficos, tab_evolucion, tab_detalles = st.tabs([
 # TAB 1: RESUMEN DE FONDOS
 with tab_resumen:
     st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
-    
     final_html = final.copy()
     final_html["Invertido"] = final_html["Invertido"].map("{:,.2f} €".format)
     final_html["Valor actual"] = final_html["Valor actual"].map("{:,.2f} €".format)
@@ -505,7 +489,6 @@ with tab_resumen:
     final_html["7 días (%)"] = final_html["7 días (%)"].map("{:.2f} %".format)
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
 # TAB 2: GRÁFICOS
@@ -542,7 +525,6 @@ with tab_evolucion:
 # TAB 4: DETALLE DE APORTACIONES
 with tab_detalles:
     st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
-    
     col_select, _ = st.columns([1.5, 2])
     with col_select:
         fondo = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
@@ -562,5 +544,4 @@ with tab_detalles:
     df_detalles_html["Valor Actual"] = df_detalles_html["Valor Actual"].map("{:,.2f} €".format)
     df_detalles_html["Ganancia"] = df_detalles_html["Ganancia"].map("{:,.2f} €".format)
     df_detalles_html["Rentabilidad (%)"] = df_detalles_html["Rentabilidad (%)"].map("{:.2f} %".format)
-
     render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
