@@ -202,7 +202,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ========================================================
-# SIDEBAR CON ESTRATEGIA INVARIABLE (FECHA + ISIN + IMPORTE)
+# SIDEBAR CON FILTRADO ACTIVO DE DUPLICADOS EN LA SUBIDA
 # ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -240,11 +240,10 @@ with st.sidebar:
                 ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
                 datos_actuales = pd.DataFrame(ws_check.get_all_records())
                 
-                # 🛠️ CANDADO ABSOLUTO: Mapeo estricto e invariable de datos existentes
+                # Mapeo invariable de datos existentes (CANDADO INVARIABLE)
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
-                        # Unificar fechas a formato YYYY-MM-DD
                         fecha_raw = str(r.get("date", "")).strip()
                         try:
                             fecha_norm = pd.to_datetime(fecha_raw, dayfirst=True).strftime('%Y-%m-%d')
@@ -253,14 +252,12 @@ with st.sidebar:
                         
                         isin_norm = str(r.get("isin", "")).strip()
                         
-                        # Unificar importe quitando cualquier formato regional
                         try:
                             amount_raw = str(r.get("amount", "0")).replace(",", ".")
                             importe_norm = round(float(amount_raw), 2)
                         except:
                             importe_norm = 0.0
                         
-                        # Guardamos la clave pura en el set
                         registros_existentes.add((fecha_norm, isin_norm, importe_norm))
                 
                 filas_para_subir = []
@@ -268,7 +265,6 @@ with st.sidebar:
                 
                 for _, fila in nuevo_df.iterrows():
                     f_orden = str(fila["Fecha de la orden"]).strip()
-                    # Normalizar la fecha del CSV para comparar peras con peras
                     try:
                         f_orden_norm = pd.to_datetime(f_orden, dayfirst=True).strftime('%Y-%m-%d')
                     except:
@@ -279,14 +275,17 @@ with st.sidebar:
                     precio_val = round(float(fila["price"]), 2)
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
-                    # Comprobación de duplicados con la clave estricta
                     llave_fila = (f_orden_norm, isin_clean, importe_val)
-                    duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
+                    es_duplicado = llave_fila in registros_existentes
+                    duplicado = "⚠️ Ya existe" if es_duplicado else "✅ Nueva"
                     
                     importe_str_es = f"{importe_val}".replace(".", ",")
                     precio_str_es = f"{precio_val}".replace(".", ",")
                     
-                    filas_para_subir.append([f_orden, importe_str_es, precio_str_es, nombre_fondo, isin_clean])
+                    # 🛠️ Solo guardamos en la cola de subida si NO es duplicado
+                    if not es_duplicado:
+                        filas_para_subir.append([f_orden, importe_str_es, precio_str_es, nombre_fondo, isin_clean])
+                        
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
                 
                 df_resumen = pd.DataFrame(resumen_vista)
@@ -297,11 +296,14 @@ with st.sidebar:
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("👍 Validar y Subir", use_container_width=True, type="primary"):
-                        with st.spinner("Subiendo registros limpios..."):
-                            ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
-                            st.sidebar.success("¡Operación completada con éxito!")
-                            st.cache_data.clear()
-                            st.rerun()
+                        if len(filas_para_subir) == 0:
+                            st.sidebar.warning("⚠️ No hay filas nuevas que subir. Todas ya existen.")
+                        else:
+                            with st.spinner(f"Subiendo {len(filas_para_subir)} registros nuevos..."):
+                                ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
+                                st.sidebar.success(f"¡{len(filas_para_subir)} filas subidas con éxito!")
+                                st.cache_data.clear()
+                                st.rerun()
                 with c2:
                     if st.button("❌ Cancelar", use_container_width=True):
                         st.cache_data.clear()
