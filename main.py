@@ -9,73 +9,139 @@ import plotly.graph_objects as go
 # ==========================================================
 st.set_page_config(page_title="Inversiones", layout="wide", initial_sidebar_state="expanded")
 
-# Inyección de CSS premium destructora de Shadow DOM (Corrige títulos de tablas definitivamente)
+# Inyección de CSS global para el entorno y componentes nativos de Streamlit
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
     
-    /* Configuración de fuente y fondo global */
     html, body, [class*="css"], .main .block-container {
         font-family: 'Inter', sans-serif;
         color: #f8fafc !important;
     }
     
-    /* Fondo oscuro obligatorio para toda la app y la barra lateral */
     .stApp, div[data-testid="stSidebar"] {
         background-color: #0f172a !important;
     }
     
     .main .block-container { padding-top: 1.5rem; }
     
-    /* Asegurar textos legibles en la sidebar */
     div[data-testid="stSidebar"] p, div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] label {
         color: #f8fafc !important;
     }
     
-    /* 🎨 SUPER CORRECCIÓN CABECERAS DE TABLAS (IGNORA EL SHADOW DOM DE STREAMLIT) */
-    /* Fuerza el fondo oscuro y texto claro en CUALQUIER elemento de cabecera nativo u ordenable */
-    [data-testid="stTable"] th, 
-    [data-testid="stDataFrame"] th,
-    [data-testid="stDataFrame"] [role="columnheader"],
-    [data-testid="stDataFrame"] div[class*="header"], 
-    th {
-        background-color: #1e293b !important;
-        color: #f8fafc !important;
-    }
-
-    /* Modifica el texto interior de las celdas de título (Fila 0) */
-    [data-testid="stDataFrame"] [role="columnheader"] p,
-    [data-testid="stDataFrame"] th span,
-    th p, th {
-        color: #f8fafc !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-        font-size: 13px !important;
-        letter-spacing: 0.5px !important;
-    }
-    
-    /* Contenedor general de tablas con bordes suavizados */
-    div[data-testid="stDataFrame"], div[data-testid="stTable"] {
-        border: 1px solid #334155 !important;
-        border-radius: 12px !important;
-        overflow: hidden;
-        background-color: #0f172a !important;
-    }
-    
-    /* Unificación de color y tamaño para títulos de pestañas (Tabs) */
+    /* Pestañas (Tabs) estilo Hub Financiero */
     button[data-baseweb="tab"] p {
         color: #94a3b8 !important;
-        font-size: 20px !important; 
+        font-size: 18px !important; 
         font-weight: 500 !important;
-        padding: 4px 8px !important;
     }
     button[aria-selected="true"] p {
         color: #3b82f6 !important; 
-        font-size: 20px !important; 
+        font-size: 18px !important; 
         font-weight: 700 !important; 
     }
     </style>
 """, unsafe_allow_html=True)
+
+# 🎨 HOJA DE ESTILOS INYECTADA PARA LAS TABLAS HTML ESTILO FINANCIAL-HUB
+st.markdown("""
+    <style>
+    .financial-table-container {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        background-color: #1e293b;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    table.financial-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #f8fafc;
+        font-size: 14px;
+        text-align: center;
+    }
+    
+    /* 📌 FILA 0: CABECERA PREMIUM OSCURA CON TÍTULOS RESALTADOS */
+    table.financial-table thead tr {
+        background-color: #0f172a !important;
+        border-bottom: 2px solid #334155;
+    }
+    
+    table.financial-table th {
+        padding: 14px 16px;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        color: #cbd5e1 !important;
+    }
+    
+    /* Celdas del cuerpo */
+    table.financial-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #334155;
+        font-weight: 500;
+    }
+    
+    /* Alternancia de filas (Zebra striping discreto) */
+    table.financial-table tbody tr:nth-of-type(even) {
+        background-color: #1a2333;
+    }
+    
+    /* Efecto Hover al pasar el ratón por encima */
+    table.financial-table tbody tr:hover {
+        background-color: #243146;
+        transition: background-color 0.2s ease;
+    }
+    
+    /* Clases de utilidad para formatear rendimientos dinámicamente */
+    .pos-val { color: #10b981 !important; font-weight: 700; }
+    .neg-val { color: #f43f5e !important; font-weight: 700; }
+    .neutral-val { color: #f8fafc !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==========================================================
+# FUNCIÓN COMPONENTE: RENDERIZADOR DE TABLAS HTML
+# ==========================================================
+def render_financial_table(df_styled, cols_color_render=None):
+    """
+    Transforma un DataFrame formateado en una tabla HTML limpia y estilizada
+    como los portales financieros reales.
+    """
+    html_table = f'<div class="financial-table-container">'
+    html_table += f'<table class="financial-table">'
+    
+    # Construcción de Cabecera (Fila 0)
+    html_table += '<thead><tr>'
+    for col in df_styled.columns:
+        html_table += f'<th>{col}</th>'
+    html_table += '</tr></thead>'
+    
+    # Construcción de Filas de datos
+    html_table += '<tbody>'
+    for _, row in df_styled.iterrows():
+        html_table += '<tr>'
+        for col in df_styled.columns:
+            val_str = str(row[col])
+            cell_class = ""
+            
+            # Comprobación de colores dinámicos si la columna aplica
+            if cols_color_render and col in cols_color_render:
+                if "-" in val_str:
+                    cell_class = ' class="neg-val"'
+                elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
+                    cell_class = ' class="pos-val"'
+            
+            html_table += f'<td{cell_class}>{val_str}</td>'
+        html_table += '</tr>'
+    html_table += '</tbody></table></div>'
+    
+    st.write(html_table, unsafe_allow_html=True)
+
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -163,23 +229,6 @@ def load_prices():
     latest = df.groupby("isin").tail(1)
 
     return dict(zip(latest["isin"], latest["vl"])), df
-
-# ==========================================================
-# Estilos de Celda Dinámicos para Evitar Fondos Blancos
-# ==========================================================
-def color_rentabilidad(val):
-    try:
-        val = float(val)
-        if val > 0:
-            return "background-color: #1e293b; color: #10b981; font-weight: bold; text-align: center;"
-        elif val < 0:
-            return "background-color: #1e293b; color: #f43f5e; font-weight: bold; text-align: center;"
-    except:
-        pass
-    return "background-color: #1e293b; color: #f8fafc; text-align: center;"
-
-def style_base_cells(val):
-    return "background-color: #1e293b; color: #f8fafc; text-align: center;"
 
 # ==========================================
 # PROCESAMIENTO Y LÓGICA
@@ -365,7 +414,7 @@ kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
             <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">💰 Total Invertido</p>
             <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #f8fafc;">{last['invested']:,.2f} €</p>
         </div>
@@ -373,7 +422,7 @@ with kpi1:
 
 with kpi2:
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
             <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📈 Valor Actual</p>
             <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #60a5fa;">{last['value']:,.2f} €</p>
         </div>
@@ -383,7 +432,7 @@ with kpi3:
     rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
     color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
             <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🍀 Ganancia acumulada</p>
             <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last['profit']:,.2f} € <span style="font-size: 14px; font-weight: 500; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p>
         </div>
@@ -393,7 +442,7 @@ with kpi4:
     color_var = "#10b981" if last["1d (%)"] >= 0 else "#f43f5e"
     signo = "+" if last["1d (%)"] >= 0 else ""
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
             <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⚡ Variación Diaria</p>
             <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{last['1d (%)']:.2f} %</p>
         </div>
@@ -416,31 +465,22 @@ tab_resumen, tab_graficos, tab_evolucion, tab_detalles = st.tabs([
 # ----------------------------------------------------------
 with tab_resumen:
     st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
-    altura_tabla = 35 * len(final) + 38
-    styled = (
-        final.style
-        .format({
-            "Invertido": "{:,.2f} €",
-            "Valor actual": "{:,.2f} €",
-            "Ganancia": "{:,.2f} €",
-            "Rentabilidad (%)": "{:.2f} %",
-            "1 día (%)": "{:.2f} %",
-            "7 días (%)": "{:.2f} %",
-            "1 mes (%)": "{:.2f} %",
-            "Última actualización": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
-        })
-        .map(style_base_cells)
-        .map(
-            color_rentabilidad,
-            subset=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)","Rentabilidad (%)"]
-        )
-    )
+    
+    # Mapeo y formateo manual a String para inyección limpia en HTML
+    final_html = final.copy()
+    final_html["Invertido"] = final_html["Invertido"].map("{:,.2f} €".format)
+    final_html["Valor actual"] = final_html["Valor actual"].map("{:,.2f} €".format)
+    final_html["Ganancia"] = final_html["Ganancia"].map("{:,.2f} €".format)
+    final_html["Rentabilidad (%)"] = final_html["Rentabilidad (%)"].map("{:.2f} %".format)
+    final_html["1 día (%)"] = final_html["1 día (%)"].map("{:.2f} %".format)
+    final_html["7 días (%)"] = final_html["7 días (%)"].map("{:.2f} %".format)
+    final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
+    final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
 
-    st.dataframe(
-        styled,
-        use_container_width=True,
-        hide_index=True,
-        height=altura_tabla
+    # LLAMADA AL RENDERIZADOR PROFESIONAL DE TABLAS
+    render_financial_table(
+        final_html, 
+        cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"]
     )
 
 # ----------------------------------------------------------
@@ -472,10 +512,7 @@ with tab_graficos:
             name="Valor cartera", mode="lines", line=dict(color="#3b82f6", width=3)
         ))
         fig1.update_layout(
-            title=dict(
-                text="Evolución inversión vs mercado", 
-                font=dict(color="#f8fafc", size=18, family="Inter")
-            ),
+            title=dict(text="Evolución inversión vs mercado", font=dict(color="#f8fafc", size=18, family="Inter")),
             xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
             hovermode="x unified", margin=dict(l=10, r=10, t=50, b=10)
@@ -490,10 +527,7 @@ with tab_graficos:
         ))
         fig2.add_hline(y=0, line_dash="dash", line_color="#475569")
         fig2.update_layout(
-            title=dict(
-                text="Evolución del beneficio", 
-                font=dict(color="#f8fafc", size=18, family="Inter")
-            ),
+            title=dict(text="Evolución del beneficio", font=dict(color="#f8fafc", size=18, family="Inter")),
             xaxis_title="Fecha", yaxis_title="€",
             template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
             hovermode="x unified", margin=dict(l=10, r=10, t=50, b=10)
@@ -502,7 +536,6 @@ with tab_graficos:
 
     st.markdown("---")
     
-    # Distribución de cartera
     latest = dense.sort_values("date").groupby("fund").tail(1)
     latest = latest.dropna(subset=["market_value"])
     alloc = (
@@ -527,18 +560,14 @@ with tab_graficos:
         ]
     )
     fig_pie.update_layout(
-        title=dict(
-            text="📊 Distribución de la cartera", 
-            x=0.0, 
-            font=dict(color="#f8fafc", size=18, family="Inter")
-        ),
+        title=dict(text="📊 Distribución de la cartera", x=0.0, font=dict(color="#f8fafc", size=18, family="Inter")),
         template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False, height=650, margin=dict(l=10, r=20, t=60, b=20)
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
 # ----------------------------------------------------------
-# TAB 3: HISTORIAL DE EVOLUCIÓN (PESTAÑA INDEPENDIENTE)
+# TAB 3: HISTORIAL DE EVOLUCIÓN
 # ----------------------------------------------------------
 with tab_evolucion:
     st.markdown("<h3 style='font-size: 18px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
@@ -547,16 +576,13 @@ with tab_evolucion:
         "date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia",
     })
     
-    styled_evo = (
-        df_view_evo.style
-        .format({
-            "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
-            "Invertido": "{:,.2f} €", "Precio": "{:,.2f} €", "Ganancia": "{:,.2f} €"
-        })
-        .map(style_base_cells)
-        .map(color_rentabilidad, subset=["Ganancia"])
-    )
-    st.dataframe(styled_evo, use_container_width=True, hide_index=True)
+    df_evo_html = df_view_evo.copy()
+    df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    df_evo_html["Invertido"] = df_evo_html["Invertido"].map("{:,.2f} €".format)
+    df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
+    df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
+    
+    render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
 
 # ----------------------------------------------------------
 # TAB 4: DETALLE DE APORTACIONES
@@ -585,15 +611,13 @@ with tab_detalles:
     })
     df_view = df_view[["Fecha", "Fondo", "ISIN", "Invertido", "Valor Actual", "Precio", "Precio Actual", "Ganancia", "Rentabilidad (%)"]]
 
-    styled_detalles = (
-        df_view.style
-        .format({
-            "Fecha": lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "",
-            "Invertido": "{:,.2f} €", "Precio": "{:,.2f} €", "Precio Actual": "{:,.2f} €",
-            "Valor Actual": "{:,.2f} €", "Ganancia": "{:,.2f} €", "Rentabilidad (%)": "{:.2f} %"
-        })
-        .map(style_base_cells)
-        .map(color_rentabilidad, subset=["Ganancia","Rentabilidad (%)"])
-    )
+    df_detalles_html = df_view.copy()
+    df_detalles_html["Fecha"] = df_detalles_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    df_detalles_html["Invertido"] = df_detalles_html["Invertido"].map("{:,.2f} €".format)
+    df_detalles_html["Precio"] = df_detalles_html["Precio"].map("{:,.2f} €".format)
+    df_detalles_html["Precio Actual"] = df_detalles_html["Precio Actual"].map("{:,.2f} €".format)
+    df_detalles_html["Valor Actual"] = df_detalles_html["Valor Actual"].map("{:,.2f} €".format)
+    df_detalles_html["Ganancia"] = df_detalles_html["Ganancia"].map("{:,.2f} €".format)
+    df_detalles_html["Rentabilidad (%)"] = df_detalles_html["Rentabilidad (%)"].map("{:.2f} %".format)
 
-    st.dataframe(styled_detalles, use_container_width=True, hide_index=True)
+    render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
