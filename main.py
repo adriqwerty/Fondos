@@ -378,7 +378,6 @@ def load_prices():
 # PROCESAMIENTO Y LÓGICA GENERAL
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
-st.write(df["price"].head(20))
 price_map, hist_df = load_prices()
 
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
