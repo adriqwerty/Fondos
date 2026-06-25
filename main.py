@@ -530,7 +530,7 @@ with tab_resumen:
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
 # TAB 2: GRÁFICOS
-# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - CORREGIDA)
+# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - CORREGIDA SIN COMENTARIOS INTERNOS)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -542,7 +542,6 @@ with tab_graficos:
     with col_g1:
         fig1 = go.Figure()
         
-        # 📉 Línea de Capital Invertido
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["invested"], 
@@ -551,7 +550,6 @@ with tab_graficos:
             line=dict(color="#64748b", width=1.5, dash="dash")
         ))
         
-        # 🚀 Línea de Valor de Cartera con Relleno de Área Premium
         fig1.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["value"], 
@@ -563,7 +561,6 @@ with tab_graficos:
         ))
         
         fig1.update_layout(
-            # ✨ Solución: Negrita mediante HTML <b> y eliminamos 'weight'
             title=dict(text="<b>Evolución del Valor Total</b>", font=dict(size=14, color="#cbd5e1")),
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
@@ -571,7 +568,6 @@ with tab_graficos:
             margin=dict(l=20, r=20, t=50, b=20),
             height=450,
             hovermode="x unified", 
-            
             xaxis=dict(
                 showgrid=True,
                 gridcolor="#1e293b",
@@ -583,7 +579,7 @@ with tab_graficos:
                     buttons=list([
                         dict(count=1, label="1M", step="month", stepmode="backward"),
                         dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(step="all", label="TODO") # Eliminado stepmode conflictivo aquí
+                        dict(step="all", label="TODO")
                     ]),
                     bgcolor="#1e293b",
                     activebgcolor="#3b82f6",
@@ -602,7 +598,6 @@ with tab_graficos:
     with col_g2:
         fig2 = go.Figure()
         
-        # 📈 Línea de Beneficio Neto con Área Esmeralda
         fig2.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["profit"], 
@@ -614,7 +609,6 @@ with tab_graficos:
         ))
         
         fig2.update_layout(
-            # ✨ Solución: Negrita mediante HTML <b> y eliminamos 'weight'
             title=dict(text="<b>Evolución de la Ganancia Neta</b>", font=dict(size=14, color="#cbd5e1")),
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
