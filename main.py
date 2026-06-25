@@ -202,7 +202,7 @@ def load_fondos_dict():
 isin_to_fund_global = load_fondos_dict()
 
 # ========================================================
-# SIDEBAR CON FILTRADO ACTIVO DE DUPLICADOS EN LA SUBIDA
+# SIDEBAR CON SUBIDA EN FORMATO NUMÉRICO PURO (SIN COMAS TEXTUALES)
 # ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
@@ -279,12 +279,10 @@ with st.sidebar:
                     es_duplicado = llave_fila in registros_existentes
                     duplicado = "⚠️ Ya existe" if es_duplicado else "✅ Nueva"
                     
-                    importe_str_es = f"{importe_val}".replace(".", ",")
-                    precio_str_es = f"{precio_val}".replace(".", ",")
-                    
-                    # 🛠️ Solo guardamos en la cola de subida si NO es duplicado
+                    # 🛠️ MODIFICACIÓN CRÍTICA: Guardar como flotantes nativos (Python floats)
+                    # No los convertimos a String con comas, dejamos que Google Sheets aplique su formato nativo.
                     if not es_duplicado:
-                        filas_para_subir.append([f_orden, importe_str_es, precio_str_es, nombre_fondo, isin_clean])
+                        filas_para_subir.append([f_orden, importe_val, precio_val, nombre_fondo, isin_clean])
                         
                     resumen_vista.append({"Fondo": nombre_fondo, "Importe": f"{importe_val:.2f} €", "Estado": duplicado})
                 
@@ -300,6 +298,7 @@ with st.sidebar:
                             st.sidebar.warning("⚠️ No hay filas nuevas que subir. Todas ya existen.")
                         else:
                             with st.spinner(f"Subiendo {len(filas_para_subir)} registros nuevos..."):
+                                # Al enviar floats puros, Google Sheets los procesará correctamente como números
                                 ws_check.append_rows(filas_para_subir, value_input_option="USER_ENTERED")
                                 st.sidebar.success(f"¡{len(filas_para_subir)} filas subidas con éxito!")
                                 st.cache_data.clear()
