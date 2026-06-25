@@ -481,7 +481,32 @@ datos_circular["Valor actual"] = pd.to_numeric(
 # VISTA GENERAL Y PANELES
 # ==========================================
 #st.markdown("<h3 style='font-size: 20px; font-weight: 700; color: #f8fafc; margin-top: 5px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
+# ==========================================
+# VISTA GENERAL Y PANELES (ENCABEZADO PREMIUM)
+# ==========================================
+st.markdown("""
+    <div style="margin-top: 5px; margin-bottom: 25px; padding-bottom: 12px; border-bottom: 1px solid #1e293b;">
+        <h3 style="
+            font-family: 'Inter', sans-serif; 
+            font-size: 22px; 
+            font-weight: 700; 
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, #f8fafc 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        ">
+            <span style="-webkit-text-fill-color: initial; font-size: 20px;">💼</span> 
+            Evolución de la Inversión
+        </h3>
+    </div>
+""", unsafe_allow_html=True)
 
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+# ... el resto de tus KPIs continúa igual abajo
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
