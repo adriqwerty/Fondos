@@ -201,9 +201,9 @@ def load_fondos_dict():
 
 isin_to_fund_global = load_fondos_dict()
 
-# ==========================================
-# SIDEBAR ESTILIZADA CON DETECTOR BLINDADO
-# ==========================================
+# ========================================================
+# SIDEBAR CON ESTRATEGIA INVARIABLE (FECHA + ISIN + IMPORTE)
+# ========================================================
 with st.sidebar:
     st.markdown("<h2 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 10px; margin-top: 10px;'>👤 Cartera Activa</h2>", unsafe_allow_html=True)
     usuario = st.selectbox("Elige cartera", ["Adrian", "Oscar", "Arancha"], label_visibility="collapsed")
@@ -240,35 +240,47 @@ with st.sidebar:
                 ws_check = sh_check.worksheet(SHEETS_MAP[usuario]["aportaciones"])
                 datos_actuales = pd.DataFrame(ws_check.get_all_records())
                 
-                # 🛠️ DETECTOR CORREGIDO: Asegurar parseo numérico limpio sin importar las comas/puntos de Sheets
+                # 🛠️ CANDADO ABSOLUTO: Mapeo estricto e invariable de datos existentes
                 registros_existentes = set()
                 if not datos_actuales.empty and "isin" in datos_actuales.columns:
                     for _, r in datos_actuales.iterrows():
-                        fecha_s = str(r.get("date", "")).strip()
-                        isin_s = str(r.get("isin", "")).strip()
-                        # Limpiar importe de Sheets quitando comas regionales si vinieran como texto
+                        # Unificar fechas a formato YYYY-MM-DD
+                        fecha_raw = str(r.get("date", "")).strip()
+                        try:
+                            fecha_norm = pd.to_datetime(fecha_raw, dayfirst=True).strftime('%Y-%m-%d')
+                        except:
+                            fecha_norm = fecha_raw
+                        
+                        isin_norm = str(r.get("isin", "")).strip()
+                        
+                        # Unificar importe quitando cualquier formato regional
                         try:
                             amount_raw = str(r.get("amount", "0")).replace(",", ".")
-                            importe_s = round(float(amount_raw), 2)
+                            importe_norm = round(float(amount_raw), 2)
                         except:
-                            importe_s = 0.0
+                            importe_norm = 0.0
                         
-                        # Generar clave única de coincidencia exacta
-                        key = (fecha_s, isin_s, importe_s)
-                        registros_existentes.add(key)
+                        # Guardamos la clave pura en el set
+                        registros_existentes.add((fecha_norm, isin_norm, importe_norm))
                 
                 filas_para_subir = []
                 resumen_vista = []
                 
                 for _, fila in nuevo_df.iterrows():
                     f_orden = str(fila["Fecha de la orden"]).strip()
+                    # Normalizar la fecha del CSV para comparar peras con peras
+                    try:
+                        f_orden_norm = pd.to_datetime(f_orden, dayfirst=True).strftime('%Y-%m-%d')
+                    except:
+                        f_orden_norm = f_orden
+                        
                     isin_clean = str(fila["ISIN"]).strip()
                     importe_val = round(float(fila["Importe estimado"]), 2)
                     precio_val = round(float(fila["price"]), 2)
                     nombre_fondo = isin_to_fund_global.get(isin_clean, "Desconocido")
                     
-                    # Comprobación contra el set unificado
-                    llave_fila = (f_orden, isin_clean, importe_val)
+                    # Comprobación de duplicados con la clave estricta
+                    llave_fila = (f_orden_norm, isin_clean, importe_val)
                     duplicado = "⚠️ Ya existe" if llave_fila in registros_existentes else "✅ Nueva"
                     
                     importe_str_es = f"{importe_val}".replace(".", ",")
