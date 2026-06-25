@@ -529,8 +529,7 @@ with tab_resumen:
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
-# TAB 2: GRÁFICOS
-# TAB 2: GRÁFICOS (VERSIÓN PREMIUM TRADING - ULTRA COMPATIBLE)
+# TAB 2: GRÁFICOS (VERSIÓN INTEGRAL ANTIFALLOS)
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
@@ -570,26 +569,11 @@ with tab_graficos:
             hovermode="x unified", 
             xaxis=dict(
                 showgrid=True,
-                gridcolor="#1e293b",
-                showspikes=True, 
-                spikecolor="#3b82f6",
-                spikethickness=1,
-                spikemode="across",
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1M", step="month", stepmode="backward"),
-                        dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(step="all", label="TODO")
-                    ]),
-                    bgcolor="#1e293b",
-                    activebgcolor="#3b82f6",
-                    font=dict(color="#f8fafc", size=11)
-                )
+                gridcolor="#1e293b"
             ),
             yaxis=dict(
                 showgrid=True,
-                gridcolor="#1e293b",
-                suffix=" €" # Eliminamos tickformat conflictivo, dejamos que Plotly auto-formatee de forma segura
+                gridcolor="#1e293b"
             )
         )
         st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
@@ -617,29 +601,15 @@ with tab_graficos:
             hovermode="x unified",
             xaxis=dict(
                 showgrid=True,
-                gridcolor="#1e293b",
-                showspikes=True,
-                spikecolor="#10b981",
-                spikethickness=1,
-                spikemode="across",
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1M", step="month", stepmode="backward"),
-                        dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(step="all", label="TODO")
-                    ]),
-                    bgcolor="#1e293b",
-                    activebgcolor="#10b981",
-                    font=dict(color="#f8fafc", size=11)
-                )
+                gridcolor="#1e293b"
             ),
             yaxis=dict(
                 showgrid=True,
-                gridcolor="#1e293b",
-                suffix=" €"
+                gridcolor="#1e293b"
             )
         )
         st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
+
 
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
