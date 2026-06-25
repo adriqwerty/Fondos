@@ -342,7 +342,8 @@ def load_aportaciones(sheet_name):
         if "amount" in df_data.columns:
             df_data["amount"] = pd.to_numeric(df_data["amount"].astype(str).str.replace(",", "."), errors="coerce")
         if "price" in df_data.columns:
-            df_data["price"] = pd.to_numeric(df_data["price"].astype(str).str.replace(",", "."), errors="coerce")
+            df_data["price"] = df_data["price"]astype(str).str.replace(",", ".").str.strip()
+            df_data["price"] = pd.to_numeric(df_data["price"], errors="coerce")
     return df_data
 
 @st.cache_data(ttl=300)
