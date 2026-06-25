@@ -207,11 +207,11 @@ def render_financial_table(df_styled, cols_color_render=None):
 
 
 # ==========================================================
-# FUNCIÓN COMPONENTE: PROCESADOR DE CSV DE ÓRDENES REAL
+# FUNCIÓN COMPONENTE: PROCESADOR DE CSV CORREGIDO
 # ==========================================================
 def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
     try:
-        # Leer usando punto y coma como separador (estándar del archivo proporcionado)
+        # Leer usando punto y coma como separador
         nuevo_df = pd.read_csv(uploaded_file, sep=';')
         
         # Validar columnas requeridas basadas en el archivo real
@@ -221,7 +221,7 @@ def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
                 st.sidebar.error(f"❌ Estructura incorrecta. Falta la columna: '{col}'")
                 return False
         
-        # Limpieza de importes y participaciones (reemplazar comas decimales por puntos y quitar divisas)
+        # Limpieza de importes y participaciones
         nuevo_df["Importe estimado"] = (
             nuevo_df["Importe estimado"]
             .astype(str)
@@ -239,17 +239,19 @@ def procesar_y_subir_csv(uploaded_file, client, spreadsheet_id, sheet_name):
             .astype(float)
         )
         
-        # Calcular precio implícito (Price = Amount / Units)
+        # Calcular precio implícito (Precio = Importe / Participaciones)
         nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
         
-        # Estructurar filas para Google Sheets en orden estándar: [Fecha, ISIN, Importe, Precio]
+        # AJUSTE DE ORDEN EXACTO PARA GOOGLE SHEETS: [amount, price, date, isin]
+        # De acuerdo a la asignación de tu script: 
+        # df["amount"] (Col A), df["price"] (Col B), df["date"] (Col C), df["isin"] (Col D)
         filas_finales = []
         for _, fila in nuevo_df.iterrows():
             registro = [
-                str(fila["Fecha de la orden"]), 
-                str(fila["ISIN"]),             
-                float(fila["Importe estimado"]),
-                round(float(fila["price"]), 4)  
+                float(fila["Importe estimado"]), # Col A: amount
+                round(float(fila["price"]), 4),  # Col B: price
+                str(fila["Fecha de la orden"]),  # Col C: date
+                str(fila["ISIN"])                # Col D: isin
             ]
             filas_finales.append(registro)
             
