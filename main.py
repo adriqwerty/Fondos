@@ -3,7 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import streamlit as st
 import plotly.graph_objects as go
-
+import plotly.express as px
 
 # ==========================================================
 # 🌌 INTERFAZ COMPLETA EN MODO OSCURO (CSS PREMIUM)
@@ -97,11 +97,13 @@ st.markdown("""
     <style>
     .financial-table-container {
         width: 100%;
+        overflow: hidden; /* Corta desbordes fantasma inferiores */
         overflow-x: auto;
         border: 1px solid #334155;
         border-radius: 12px;
         background-color: #1e293b;
         margin-bottom: 25px;
+        padding-bottom: 0px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     table.financial-table {
@@ -110,6 +112,7 @@ st.markdown("""
         color: #f8fafc;
         font-size: 14px;
         text-align: center;
+        margin-bottom: 0px !important; /* Elimina márgenes remanentes de la etiqueta table */
     }
     table.financial-table thead tr {
         background-color: #0f172a !important;
@@ -130,7 +133,7 @@ st.markdown("""
         vertical-align: middle;
     }
     table.financial-table tbody tr:last-child td {
-        border-bottom: none;
+        border-bottom: none !important;
     }
     table.financial-table tbody tr:nth-of-type(even) {
         background-color: #1a2333;
@@ -181,7 +184,7 @@ def generate_sparkline_svg(values):
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
@@ -211,7 +214,9 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    st.write(html_table, unsafe_allow_html=True)
+    
+    # Renderizado directo mediante st.html para evitar nodos parásito de Markdown
+    st.html(html_table)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -495,12 +500,11 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 7 registros de VL por fondo)
+# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 30 registros de VL por fondo)
 sparklines_dict = {}
 for f in funds:
     f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
     if not f_hist.empty:
-        # Extraemos los últimos 7 valores liquidativos como lista de floats
         sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
     else:
         sparklines_dict[f] = []
@@ -519,7 +523,6 @@ portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
-
 
 last = portfolio.iloc[-2]
 
@@ -574,7 +577,6 @@ with tab_resumen:
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
-    # Reordenamos las columnas para mover el minitrabajo de Tendencia al lado de los datos clave
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
          "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Última actualización"
@@ -664,7 +666,6 @@ with tab_graficos:
         )
         st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
-
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
     df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
@@ -674,7 +675,6 @@ with tab_evolucion:
     df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
     df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
     render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
-
 
 # TAB 4: DETALLE DE APORTACIONES
 with tab_detalles:
@@ -701,8 +701,6 @@ with tab_detalles:
 
 # TAB 5: DISTRIBUCIÓN
 with tab_distribucion:
-    import plotly.express as px
-    
     colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
     
     fig_pie = px.pie(
