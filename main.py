@@ -186,8 +186,11 @@ def generate_sparkline_svg(values):
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    # 🚀 Le añadimos un ID único a la tabla para que JavaScript la localice limpiamente
-    html_table = f'<div class="financial-table-container"><table class="financial-table" id="sortable-table"><thead><tr>'
+    # 🚀 Generamos un ID único para cada tabla por si tienes varias pestañas, evitando conflictos
+    import time
+    tabla_id = f"sortable-table-{int(time.time()*1000)}"
+    
+    html_table = f'<div class="financial-table-container"><table class="financial-table" id="{tabla_id}"><thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
@@ -217,49 +220,71 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
     
-    # ✨ JAVASCRIPT INTELIGENTE: Ordena texto, números limpios, porcentajes (€/%) e incluso celdas con minigráficos
-    js_script = """
+    # ✨ JAVASCRIPT CORREGIDO (Delegación global y ejecución forzada)
+    js_script = f"""
     <script>
-    document.querySelectorAll('#sortable-table th').forEach((header, index) => {
-        header.addEventListener('click', () => {
-            const table = header.closest('table');
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const isNumeric = header.classList.contains('num-sort') || index > 0; // Asumimos numérico si no es la primera col
-            const currentDirection = header.getAttribute('data-order') || 'asc';
-            const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    (function() {{
+        const initSort = () => {{
+            const table = document.getElementById("{tabla_id}");
+            if (!table) return;
             
-            const parseValue = (cell) => {
-                // Si la celda contiene un minigráfico, extraemos el valor numérico final guardado en el contenedor
-                const spark = cell.querySelector('.sparkline-container');
-                if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
-                
-                let text = cell.textContent.replace(/[.%€,]/g, (match) => {
-                    if (match === ',') return '.';
-                    return '';
-                }).replace(/\s/g, '').trim();
-                
-                return isNaN(parseFloat(text)) ? cell.textContent.trim().toLowerCase() : parseFloat(text);
-            };
+            // Si ya tiene los listeners puestos, no los duplicamos
+            if (table.getAttribute('data-sorted-init') === 'true') return;
+            table.setAttribute('data-sorted-init', 'true');
 
-            rows.sort((rowA, rowB) => {
-                const valA = parseValue(rowA.children[index]);
-                const valB = parseValue(rowB.children[index]);
-                
-                if (typeof valA === 'number' && typeof valB === 'number') {
-                    return newDirection === 'asc' ? valA - valB : valB - valA;
-                }
-                return newDirection === 'asc' 
-                    ? String(valA).localeCompare(String(valB)) 
-                    : String(valB).localeCompare(String(valA));
-            });
+            table.querySelectorAll('thead th').forEach((header, index) => {{
+                header.addEventListener('click', () => {{
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const currentDirection = header.getAttribute('data-order') || 'desc';
+                    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                    
+                    const parseValue = (cell) => {{
+                        if (!cell) return '';
+                        // Caso especial: Minigráfico
+                        const spark = cell.querySelector('.sparkline-container');
+                        if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
+                        
+                        // Limpieza de formatos de moneda, porcentajes y puntos de miles
+                        let text = cell.textContent.trim();
+                        if (!text) return -Infinity; 
+                        
+                        // Si parece un número con formato europeo (1.234,56 € o -4,25 %)
+                        let cleanText = text.replace(/[.%€]/g, '')
+                                            .replace(/\s/g, '')
+                                            .replace(/\./g, '') // Quita puntos de miles
+                                            .replace(',', '.');  // Cambia coma decimal por punto
+                        
+                        const num = parseFloat(cleanText);
+                        return isNaN(num) ? text.toLowerCase() : num;
+                    }};
 
-            table.querySelectorAll('th').forEach(th => th.removeAttribute('data-order'));
-            header.setAttribute('data-order', newDirection);
-            
-            tbody.append(...rows);
-        });
-    });
+                    rows.sort((rowA, rowB) => {{
+                        const valA = parseValue(rowA.children[index]);
+                        const valB = parseValue(rowB.children[index]);
+                        
+                        if (typeof valA === 'number' && typeof valB === 'number') {{
+                            return newDirection === 'asc' ? valA - valB : valB - valA;
+                        }}
+                        return newDirection === 'asc' 
+                            ? String(valA).localeCompare(String(valB)) 
+                            : String(valB).localeCompare(String(valA));
+                    }});
+
+                    table.querySelectorAll('thead th').forEach(th => th.removeAttribute('data-order'));
+                    header.setAttribute('data-order', newDirection);
+                    
+                    // Reinyectar filas ordenadas
+                    tbody.append(...rows);
+                }});
+            }});
+        }};
+
+        // Forzar ejecución inmediata y en diferido por si Streamlit tarda un milisegundo en pintar
+        initSort();
+        setTimeout(initSort, 100);
+        setTimeout(initSort, 500);
+    }})();
     </script>
     """
     st.write(html_table + js_script, unsafe_allow_html=True)
