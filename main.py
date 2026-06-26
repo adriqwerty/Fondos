@@ -3,7 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
+
 
 # ==========================================================
 # 🌌 INTERFAZ COMPLETA EN MODO OSCURO (CSS PREMIUM)
@@ -97,13 +97,11 @@ st.markdown("""
     <style>
     .financial-table-container {
         width: 100%;
-        overflow: hidden; /* Corta desbordes fantasma inferiores */
         overflow-x: auto;
         border: 1px solid #334155;
         border-radius: 12px;
         background-color: #1e293b;
         margin-bottom: 25px;
-        padding-bottom: 0px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     table.financial-table {
@@ -112,7 +110,6 @@ st.markdown("""
         color: #f8fafc;
         font-size: 14px;
         text-align: center;
-        margin-bottom: 0px !important; /* Elimina márgenes remanentes de la etiqueta table */
     }
     table.financial-table thead tr {
         background-color: #0f172a !important;
@@ -133,7 +130,7 @@ st.markdown("""
         vertical-align: middle;
     }
     table.financial-table tbody tr:last-child td {
-        border-bottom: none !important;
+        border-bottom: none;
     }
     table.financial-table tbody tr:nth-of-type(even) {
         background-color: #1a2333;
@@ -184,7 +181,7 @@ def generate_sparkline_svg(values):
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
@@ -211,11 +208,10 @@ def render_financial_table(df_styled, cols_color_render=None):
                     cell_class = ' class="neg-val"'
                 elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
                     cell_class = ' class="pos-val"'
-                html_table += f'<td{cell_class}>{val_str}</td>'
+            html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    
-    st.html(html_table)
+    st.write(html_table, unsafe_allow_html=True)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -499,11 +495,12 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 30 registros de VL por fondo)
+# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 7 registros de VL por fondo)
 sparklines_dict = {}
 for f in funds:
     f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
     if not f_hist.empty:
+        # Extraemos los últimos 7 valores liquidativos como lista de floats
         sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
     else:
         sparklines_dict[f] = []
@@ -523,123 +520,42 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-# 🎯 CORRECCIÓN CLAVE: Cambiado de iloc[-2] (penúltimo) a iloc[-1] (último real disponible)
-last = portfolio.iloc[-1]
+
+last = portfolio.iloc[-2]
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
     datos_circular["Valor actual"].astype(str).str.replace(" €", "").str.replace(",", ""), 
     errors="coerce"
 )
-
-# ======================================================================
-# CÁLCULO DE VARIACIÓN MENSUAL EXACTO DESDE DÍA 1 DEL MES (MTD)
-# ======================================================================
-var_mensual_porcentaje = 0.0
-var_mensual_euros = 0.0
-
-if not portfolio.empty:
-    ultima_fecha = pd.to_datetime(last["date"])
-    año_actual = ultima_fecha.year
-    mes_actual = ultima_fecha.month
-    
-    # Filtrar estrictamente histórico del mes en curso
-    df_mes_actual = portfolio[
-        (pd.to_datetime(portfolio["date"]).dt.year == año_actual) & 
-        (pd.to_datetime(portfolio["date"]).dt.month == mes_actual)
-    ].sort_values("date")
-    
-    # Si hay suficientes días cargados en el mes
-    if len(df_mes_actual) >= 2:
-        registro_inicial_mes = df_mes_actual.iloc[0]
-    else:
-        # Fallback inteligente: buscar el primer día del mes anterior
-        fecha_hace_un_mes = ultima_fecha - pd.DateOffset(months=1)
-        df_mes_anterior = portfolio[
-            (pd.to_datetime(portfolio["date"]).dt.year == fecha_hace_un_mes.year) & 
-            (pd.to_datetime(portfolio["date"]).dt.month == fecha_hace_un_mes.month)
-        ].sort_values("date")
-        
-        if not df_mes_anterior.empty:
-            registro_inicial_mes = df_mes_anterior.iloc[0]
-        else:
-            registro_inicial_mes = portfolio.iloc[0]
-            
-    var_mensual_euros = last["value"] - registro_inicial_mes["value"]
-    var_mensual_porcentaje = (var_mensual_euros / registro_inicial_mes["value"]) * 100 if registro_inicial_mes["value"] else 0
-
-
 # ==========================================
-# VISTA GENERAL Y PANELES (DISEÑO UNIFICADO)
+# VISTA GENERAL Y PANELES
 # ==========================================
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
-    # 🎯 Unificado: Invertido y Valor Actual juntos
-    st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">💰 Estado del Capital</p>
-            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: #60a5fa;">
-                {last["value"]:,.2f} €
-            </p>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
-                Invertido: <span style="color: #f8fafc; font-weight: 600;">{last["invested"]:,.2f} €</span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">💰 Total Invertido</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #f8fafc;">{last["invested"]:,.2f} €</p></div>', unsafe_allow_html=True)
 with kpi2:
-    # 🍀 Ganancia Acumulada
+    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">📈 Valor Actual</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #60a5fa;">{last["value"]:,.2f} €</p></div>', unsafe_allow_html=True)
+with kpi3:
     rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
     color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
-    st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p>
-            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_ganancia};">
-                {last["profit"]:,.2f} €
-            </p>
-            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
-                Retorno total: <span style="color: {color_ganancia}; font-weight: 600;">{rentabilidad_total:+.2f}%</span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
-with kpi3:
-    # ⚡ Variación Diaria
+    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
+with kpi4:
     var_porcentaje = last["1d (%)"]
     var_euros = last["1d (€)"]
     color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
-    signo_d = "+" if var_porcentaje >= 0 else ""
+    signo = "+" if var_porcentaje >= 0 else ""
     
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
             <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p>
-            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_var};">
-                {signo_d}{var_euros:,.2f} €
-            </p>
-            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
-                Últimas 24h: <span style="color: {color_var}; font-weight: 600;">{signo_d}{var_porcentaje:.2f}%</span>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">
+                {signo}{var_euros:,.2f} € 
+                <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">({signo}{var_porcentaje:.2f}%)</span>
             </p>
         </div>
     """, unsafe_allow_html=True)
-
-with kpi4:
-    # 📅 Variación Mensual Exacta (MTD)
-    color_var_m = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
-    signo_m = "+" if var_mensual_porcentaje >= 0 else ""
-    
-    st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">📅 Variación Mensual</p>
-            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_var_m};">
-                {signo_m}{var_mensual_euros:,.2f} €
-            </p>
-            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
-                Desde el día 1: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
@@ -658,6 +574,7 @@ with tab_resumen:
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
+    # Reordenamos las columnas para mover el minitrabajo de Tendencia al lado de los datos clave
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
          "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Última actualización"
@@ -746,3 +663,78 @@ with tab_graficos:
             )
         )
         st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
+
+
+# TAB 3: HISTORIAL DE EVOLUCIÓN
+with tab_evolucion:
+    df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
+    df_evo_html = df_view_evo.copy()
+    df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    df_evo_html["Invertido"] = df_evo_html["Invertido"].map("{:,.2f} €".format)
+    df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
+    df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
+    render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
+
+
+# TAB 4: DETALLE DE APORTACIONES
+with tab_detalles:
+    col_select, _ = st.columns([1.5, 2])
+    with col_select:
+        fondo = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
+
+    df_filtrado = df[df["fund"] == fondo] if fondo != "Todos" else df.copy()
+    df_view = df_filtrado.sort_values("date", ascending=False).rename(columns={
+        "date": "Fecha", "amount": "Invertido", "price": "Precio", "fund":"Fondo", "isin":"ISIN",
+        "current_price": "Precio Actual", "valor_actual": "Valor Actual", "beneficio": "Ganancia", "rentabilidad": "Rentabilidad (%)"
+    })
+    df_view = df_view[["Fecha", "Fondo", "ISIN", "Invertido", "Valor Actual", "Precio", "Precio Actual", "Ganancia", "Rentabilidad (%)"]]
+
+    df_detalles_html = df_view.copy()
+    df_detalles_html["Fecha"] = df_detalles_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    df_detalles_html["Invertido"] = df_detalles_html["Invertido"].map("{:,.2f} €".format)
+    df_detalles_html["Precio"] = df_detalles_html["Precio"].map("{:,.2f} €".format)
+    df_detalles_html["Precio Actual"] = df_detalles_html["Precio Actual"].map("{:,.2f} €".format)
+    df_detalles_html["Valor Actual"] = df_detalles_html["Valor Actual"].map("{:,.2f} €".format)
+    df_detalles_html["Ganancia"] = df_detalles_html["Ganancia"].map("{:,.2f} €".format)
+    df_detalles_html["Rentabilidad (%)"] = df_detalles_html["Rentabilidad (%)"].map("{:.2f} %".format)
+    render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
+
+# TAB 5: DISTRIBUCIÓN
+with tab_distribucion:
+    import plotly.express as px
+    
+    colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
+    
+    fig_pie = px.pie(
+        datos_circular, 
+        values="Valor actual", 
+        names="Fondo",
+        hole=0.40, 
+        color_discrete_sequence=colores_premium
+    )
+    
+    fig_pie.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        showlegend=False,
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=600 
+    )
+    
+    fig_pie.update_traces(
+        textinfo='percent+label', 
+        textposition='inside',
+        insidetextorientation='radial',
+        textfont=dict(size=14, color="#ffffff", family="Inter, sans-serif", weight="bold"),
+        marker=dict(
+            line=dict(color='#0b111e', width=4), 
+            colors=colores_premium
+        ),
+        pull=[0.03] * len(datos_circular), 
+        hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Porcentaje: %{percent}<extra></extra>"
+    )
+    
+    _, col_grande, _ = st.columns([0.3, 3.4, 0.3])
+    with col_grande:
+        st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
