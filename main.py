@@ -531,34 +531,119 @@ datos_circular["Valor actual"] = pd.to_numeric(
     datos_circular["Valor actual"].astype(str).str.replace(" €", "").str.replace(",", ""), 
     errors="coerce"
 )
+
 # ==========================================
-# VISTA GENERAL Y PANELES
+# CÁLCULO DE VARIACIÓN MENSUAL (DESDE EL DÍA 1 DEL MES)
+# ==========================================
+var_mensual_porcentaje = 0.0
+var_mensual_euros = 0.0
+
+if not portfolio.empty:
+    # 1. Obtener el año y mes actual de la última fecha del portfolio
+    ultima_fecha = pd.to_datetime(last["date"])
+    año_actual = ultima_fecha.year
+    mes_actual = ultima_fecha.month
+    
+    # 2. Filtrar el histórico para obtener solo los días del mes actual
+    df_mes_actual = portfolio[
+        (pd.to_datetime(portfolio["date"]).dt.year == año_actual) & 
+        (pd.to_datetime(portfolio["date"]).dt.month == mes_actual)
+    ].sort_values("date")
+    
+    # 3. Validar si tenemos datos suficientes en el mes actual (al menos 2 días para notar variación)
+    if len(df_mes_actual) >= 2:
+        registro_inicial_mes = df_mes_actual.iloc[0]  # Primer día registrado de este mes
+    else:
+        # Fallback: Si es principio de mes y hay pocos datos, busca desde el día 1 del mes anterior
+        fecha_hace_un_mes = ultima_fecha - pd.DateOffset(months=1)
+        df_mes_anterior = portfolio[
+            (pd.to_datetime(portfolio["date"]).dt.year == fecha_hace_un_mes.year) & 
+            (pd.to_datetime(portfolio["date"]).dt.month == fecha_hace_un_mes.month)
+        ].sort_values("date")
+        
+        if not df_mes_anterior.empty:
+            registro_inicial_mes = df_mes_anterior.iloc[0]
+        else:
+            registro_inicial_mes = portfolio.iloc[0] # Último recurso: primer registro de la historia
+            
+    # 4. Calcular variaciones finales
+    var_mensual_euros = last["value"] - registro_inicial_mes["value"]
+    var_mensual_porcentaje = (var_mensual_euros / registro_inicial_mes["value"]) * 100 if registro_inicial_mes["value"] else 0
+
+
+
+
+# ==========================================
+# VISTA GENERAL Y PANELES (DISEÑO UNIFICADO)
 # ==========================================
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">💰 Total Invertido</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #f8fafc;">{last["invested"]:,.2f} €</p></div>', unsafe_allow_html=True)
-with kpi2:
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">📈 Valor Actual</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: #60a5fa;">{last["value"]:,.2f} €</p></div>', unsafe_allow_html=True)
-with kpi3:
-    rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
-    color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
-with kpi4:
-    var_porcentaje = last["1d (%)"]
-    var_euros = last["1d (€)"]
-    color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
-    signo = "+" if var_porcentaje >= 0 else ""
-    
+    # 🎯 Unificado: Invertido y Valor Actual juntos
     st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p>
-            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">
-                {signo}{var_euros:,.2f} € 
-                <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">({signo}{var_porcentaje:.2f}%)</span>
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">💰 Estado del Capital</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: #60a5fa;">
+                {last["value"]:,.2f} €
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
+                Invertido: <span style="color: #f8fafc; font-weight: 600;">{last["invested"]:,.2f} €</span>
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+with kpi2:
+    # 🍀 Ganancia Acumulada
+    rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
+    color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_ganancia};">
+                {last["profit"]:,.2f} €
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
+                Retorno total: <span style="color: {color_ganancia}; font-weight: 600;">{rentabilidad_total:+.2f}%</span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+with kpi3:
+    # ⚡ Variación Diaria
+    var_porcentaje = last["1d (%)"]
+    var_euros = last["1d (€)"]
+    color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
+    signo_d = "+" if var_porcentaje >= 0 else ""
+    
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_var};">
+                {signo_d}{var_euros:,.2f} €
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
+                Últimas 24h: <span style="color: {color_var}; font-weight: 600;">{signo_d}{var_porcentaje:.2f}%</span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+with kpi4:
+    # 📅 Nueva: Variación Mensual (30d)
+    color_var_m = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
+    signo_m = "+" if var_mensual_porcentaje >= 0 else ""
+    
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">📅 Variación Mensual</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 700; color: {color_var_m};">
+                {signo_m}{var_mensual_euros:,.2f} €
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
+                Últimos 30d: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
