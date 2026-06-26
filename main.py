@@ -95,22 +95,21 @@ st.markdown("""
 
 st.markdown("""
     <style>
-        /* Asegura que el contenedor se ajuste perfectamente al tamaño real de la tabla */
     .financial-table-container {
-        overflow: hidden; /* Corta cualquier desborde fantasma */
-        margin-bottom: 0px !important;
-        padding-bottom: 0px !important;
-    }
-
-    .financial-table {
-        border-collapse: collapse;
         width: 100%;
-        margin-bottom: 0px !important; /* Elimina márgenes inferiores por defecto */
+        overflow-x: auto;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        background-color: #1e293b;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-
-    /* Evita que la última fila empuje el contenedor hacia abajo */
-    .financial-table tr:last-child td {
-        border-bottom: none !important;
+    table.financial-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #f8fafc;
+        font-size: 14px;
+        text-align: center;
     }
     table.financial-table thead tr {
         background-color: #0f172a !important;
