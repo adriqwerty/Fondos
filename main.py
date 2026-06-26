@@ -3,7 +3,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import streamlit as st
 import plotly.graph_objects as go
-from streamlit.components.v1 import html
 
 
 # ==========================================================
@@ -212,94 +211,7 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    html(f"""
-<!DOCTYPE html>
-<html>
-
-<head>
-
-<link rel="stylesheet"
-href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-
-<style>
-
-body {{
-    background:#0f172a;
-    margin:0;
-}}
-
-table.dataTable {{
-    background:#1e293b;
-    color:white;
-}}
-
-table.dataTable thead th {{
-    background:#0f172a;
-    color:#cbd5e1;
-}}
-
-table.dataTable tbody tr {{
-    background:#1e293b;
-}}
-
-table.dataTable tbody tr:hover {{
-    background:#243146;
-}}
-
-.dataTables_wrapper {{
-    color:white;
-}}
-
-.dataTables_filter input,
-.dataTables_length select {{
-    background:#1e293b;
-    color:white;
-    border:1px solid #334155;
-}}
-
-</style>
-
-</head>
-
-<body>
-
-{html_table}
-
-<script>
-
-$(document).ready(function(){{
-
-$('.financial-table').DataTable({{
-
-paging:false,
-
-searching:true,
-
-info:false,
-
-order:[],
-
-stateSave:true,
-
-language:{{
-search:"🔍 Buscar:"
-}}
-
-}});
-
-}});
-
-</script>
-
-</body>
-
-</html>
-
-""", height=700, scrolling=True)
+    st.write(html_table, unsafe_allow_html=True)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
