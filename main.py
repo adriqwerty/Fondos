@@ -184,98 +184,37 @@ def generate_sparkline_svg(values):
     return svg
 
 def render_financial_table(df_styled, cols_color_render=None):
+    # 1. Limpiamos filas completamente vacías
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    import time
-    tabla_id = f"sortable-table-{int(time.time()*1000)}"
+    # 2. Si la columna de Tendencia tiene los datos como lista (para el sparkline HTML),
+    # en st.dataframe no podemos renderizar el SVG crudo directamente en la celda.
+    # Para mantener la visualización, convertimos la lista en una representación textual o visual
+    df_mostrar = df_clean.copy()
+    if "Tendencia (1m)" in df_mostrar.columns:
+        # Convertimos la lista de floats a una cadena visual bonita para que no rompa el componente
+        df_mostrar["Tendencia (1m)"] = df_mostrar["Tendencia (1m)"].apply(
+            lambda x: "📈 " + " > ".join([f"{v:.1f}" for v in x[-3:]]) if isinstance(x, list) and len(x) > 0 else ""
+        )
     
-    html_table = f'<div class="financial-table-container"><table class="financial-table" id="{tabla_id}"><thead><tr>'
-    for col in df_clean.columns:
-        html_table += f'<th>{col}</th>'
-    html_table += '</tr></thead><tbody>'
-    
-    for _, row in df_clean.iterrows():
-        if row.astype(str).str.strip().eq("").all():
-            continue
-        html_table += '<tr>'
-        for col in df_clean.columns:
-            val = row[col]
-            
-            if isinstance(val, list):
-                sparkline_content = generate_sparkline_svg(val)
-                html_table += f'<td>{sparkline_content}</td>'
-                continue
-                
-            val_str = str(val).strip()
-            if val_str == "nan" or val_str == "None":
-                val_str = ""
-            cell_class = ""
-            if cols_color_render and col in cols_color_render and val_str:
-                if "-" in val_str:
-                    cell_class = ' class="neg-val"'
-                elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
-                    cell_class = ' class="pos-val"'
-            html_table += f'<td{cell_class}>{val_str}</td>'
-        html_table += '</tr>'
-    html_table += '</tbody></table></div>'
-    
-    # 🔥 SOLUCIÓN DEFINITIVA: Forzamos la ejecución usando un truco con un elemento HTML síncrono.
-    # En lugar de esperar al DOM de Streamlit, inyectamos un script que se autoejecuta inmediatamente.
-    js_script = f"""
-    <div style="display:none;">
-        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="(function() {{
-            const table = document.getElementById('{tabla_id}');
-            if (!table || table.getAttribute('data-sorted-init') === 'true') return;
-            table.setAttribute('data-sorted-init', 'true');
-
-            table.querySelectorAll('thead th').forEach((header, index) => {{
-                header.addEventListener('click', () => {{
-                    const tbody = table.querySelector('tbody');
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    const currentDirection = header.getAttribute('data-order') || 'desc';
-                    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
-                    
-                    const parseValue = (cell) => {{
-                        if (!cell) return '';
-                        const spark = cell.querySelector('.sparkline-container');
-                        if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
-                        
-                        let text = cell.textContent.trim();
-                        if (!text) return -Infinity; 
-                        
-                        let cleanText = text.replace(/[.%€]/g, '')
-                                            .replace(/\\s/g, '')
-                                            .replace(/\\./g, '') 
-                                            .replace(',', '.');  
-                        
-                        const num = parseFloat(cleanText);
-                        return isNaN(num) ? text.toLowerCase() : num;
-                    }};
-
-                    rows.sort((rowA, rowB) => {{
-                        const valA = parseValue(rowA.children[index]);
-                        const valB = parseValue(rowB.children[index]);
-                        
-                        if (typeof valA === 'number' && typeof valB === 'number') {{
-                            return newDirection === 'asc' ? valA - valB : valB - valA;
-                        }}
-                        return newDirection === 'asc' 
-                            ? String(valA).localeCompare(String(valB)) 
-                            : String(valB).localeCompare(String(valA));
-                    }});
-
-                    table.querySelectorAll('thead th').forEach(th => th.removeAttribute('data-order'));
-                    header.setAttribute('data-order', newDirection);
-                    tbody.append(...rows);
-                }});
-            }});
-        }})();">
-    </div>
-    """
-    
-    # Combinamos todo en un único string de HTML e inyectamos permitiendo HTML inseguro
-    st.markdown(html_table + js_script, unsafe_allow_html=True)
-
+    # 3. Renderizamos usando el componente nativo interactivo de Streamlit
+    # Este componente ya viene con flechas de ordenación automáticas en cada título de celda
+    st.dataframe(
+        df_mostrar,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Fondo": st.column_config.TextColumn("Fondo", width="large"),
+            "Invertido": st.column_config.TextColumn("Invertido"),
+            "Valor actual": st.column_config.TextColumn("Valor actual"),
+            "Ganancia": st.column_config.TextColumn("Ganancia"),
+            "Rentabilidad (%)": st.column_config.TextColumn("Rentabilidad (%)"),
+            "1 día (%)": st.column_config.TextColumn("1 día (%)"),
+            "7 días (%)": st.column_config.TextColumn("7 días (%)"),
+            "1 mes (%)": st.column_config.TextColumn("1 mes (%)"),
+            "Última actualización": st.column_config.TextColumn("Última actualización")
+        }
+    )
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
