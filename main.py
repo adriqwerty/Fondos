@@ -639,7 +639,8 @@ with kpi4:
                 {signo_m}{var_mensual_euros:,.2f} €
             </p>
             <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
-                Últimos 30d: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
+    Desde el día 1: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
+</p>
             </p>
         </div>
     """, unsafe_allow_html=True)
