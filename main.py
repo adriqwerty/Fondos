@@ -101,7 +101,7 @@ st.markdown("""
         border: 1px solid #334155;
         border-radius: 12px;
         background-color: #1e293b;
-        margin-bottom: 25px;
+        margin-bottom: 0px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     table.financial-table {
