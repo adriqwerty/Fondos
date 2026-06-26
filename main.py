@@ -181,11 +181,56 @@ def generate_sparkline_svg(values):
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    
+    # 1. Leer la ordenación actual directamente de los parámetros de la URL de Streamlit
+    params = st.query_params
+    sort_by = params.get("sort", df_clean.columns[0]) # Por defecto, primera columna
+    sort_desc = params.get("desc", "true") == "true"   # Por defecto, descendente (mayor a menor)
+
+    # 2. Aplicar la ordenación matemática en Python antes de generar el HTML
+    def limpiar_para_ordenar(val):
+        if isinstance(val, list):  # Caso especial: Minigráficos (Sparklines)
+            return val[-1] if len(val) > 0 else 0
+        val_str = str(val).strip().replace(/[.%€]/g, '').replace(/\s/g, '')
+        val_str = val_str.replace('.', '').replace(',', '.') # Quita puntos de miles y maneja coma decimal
+        try:
+            return float(val_str)
+        except ValueError:
+            return str(val).lower()
+
+    if sort_by in df_clean.columns:
+        df_clean["_sort_key"] = df_clean[sort_by].apply(limpiar_para_ordenar)
+        df_clean = df_clean.sort_values(by="_sort_key", ascending=not sort_desc).drop(columns=["_sort_key"])
+
+    # 3. Renderizar tu TABLA PREMIUM ORIGINAL (HTML/CSS intacto)
+    html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    
     for col in df_clean.columns:
-        html_table += f'<th>{col}</th>'
+        # Si ya está ordenada por esta columna, invertimos el orden para el próximo clic, si no, ordenamos desc
+        if col == sort_by:
+            proximo_desc = "false" if sort_desc else "true"
+            indicador = " ▴" if not sort_desc else " ▾"
+            estilo_activo = ' style="color: #3b82f6 !important;"'
+        else:
+            proximo_desc = "true"
+            indicador = ""
+            estilo_activo = ""
+            
+        # Creamos un enlace nativo que cambia la URL. Usamos target="_self" para que no abra pestaña nueva
+        enlace_url = f"?sort={col}&desc={proximo_desc}"
+        
+        # Inyectamos el enlace directamente dentro del <th> manteniendo tu CSS intacto
+        html_table += f"""
+        <th{estilo_activo}>
+            <a href="{enlace_url}" target="_self" style="color: inherit; text-decoration: none; display: block; width: 100%; height: 100%;">
+                {col}{indicador}
+            </a>
+        </th>
+        """
+        
     html_table += '</tr></thead><tbody>'
     
+    # 4. Construcción del cuerpo de la tabla (Exactamente tu código original)
     for _, row in df_clean.iterrows():
         if row.astype(str).str.strip().eq("").all():
             continue
@@ -193,7 +238,6 @@ def render_financial_table(df_styled, cols_color_render=None):
         for col in df_clean.columns:
             val = row[col]
             
-            # 🎯 Si el valor es una lista, renderizamos el Sparkline SVG
             if isinstance(val, list):
                 sparkline_content = generate_sparkline_svg(val)
                 html_table += f'<td>{sparkline_content}</td>'
@@ -211,7 +255,8 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    st.write(html_table, unsafe_allow_html=True)
+    
+    st.markdown(html_table, unsafe_allow_html=True)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
