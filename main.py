@@ -184,37 +184,85 @@ def generate_sparkline_svg(values):
     return svg
 
 def render_financial_table(df_styled, cols_color_render=None):
-    # 1. Limpiamos filas completamente vacías
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    # 2. Si la columna de Tendencia tiene los datos como lista (para el sparkline HTML),
-    # en st.dataframe no podemos renderizar el SVG crudo directamente en la celda.
-    # Para mantener la visualización, convertimos la lista en una representación textual o visual
-    df_mostrar = df_clean.copy()
-    if "Tendencia (1m)" in df_mostrar.columns:
-        # Convertimos la lista de floats a una cadena visual bonita para que no rompa el componente
-        df_mostrar["Tendencia (1m)"] = df_mostrar["Tendencia (1m)"].apply(
-            lambda x: "📈 " + " > ".join([f"{v:.1f}" for v in x[-3:]]) if isinstance(x, list) and len(x) > 0 else ""
-        )
+    # 1. Inicializar el estado de ordenación en la memoria de Streamlit si no existe
+    if "sort_by" not in st.session_state:
+        st.session_state.sort_by = df_clean.columns[0]  # Por defecto, ordena por la primera columna
+        st.session_state.sort_ascending = True
+
+    # 2. Crear una fila de botones sutiles arriba de la tabla para ordenar
+    # (Esto simula el clic en el encabezado de forma nativa y ultra-rápida)
+    st.markdown("<p style='font-size: 12px; color: #94a3b8; margin-bottom: 5px; font-weight: 500;'>🔽 Haz clic para ordenar la tabla por:</p>", unsafe_allow_html=True)
     
-    # 3. Renderizamos usando el componente nativo interactivo de Streamlit
-    # Este componente ya viene con flechas de ordenación automáticas en cada título de celda
-    st.dataframe(
-        df_mostrar,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Fondo": st.column_config.TextColumn("Fondo", width="large"),
-            "Invertido": st.column_config.TextColumn("Invertido"),
-            "Valor actual": st.column_config.TextColumn("Valor actual"),
-            "Ganancia": st.column_config.TextColumn("Ganancia"),
-            "Rentabilidad (%)": st.column_config.TextColumn("Rentabilidad (%)"),
-            "1 día (%)": st.column_config.TextColumn("1 día (%)"),
-            "7 días (%)": st.column_config.TextColumn("7 días (%)"),
-            "1 mes (%)": st.column_config.TextColumn("1 mes (%)"),
-            "Última actualización": st.column_config.TextColumn("Última actualización")
-        }
-    )
+    # Renderizamos los botones alineados horizontalmente
+    cols_botones = st.columns(len(df_clean.columns))
+    for idx, col_name in enumerate(df_clean.columns):
+        with cols_botones[idx]:
+            # El botón muestra una flecha si es la columna activa
+            flecha = " 🔼" if st.session_state.sort_by == col_name and st.session_state.sort_ascending else (" 🔽" if st.session_state.sort_by == col_name else "")
+            
+            if st.button(f"{col_name}{flecha}", key=f"btn_sort_{col_name}", use_container_width=True):
+                if st.session_state.sort_by == col_name:
+                    # Si vuelve a pulsar la misma, invierte el orden
+                    st.session_state.sort_ascending = not st.session_state.sort_ascending
+                else:
+                    st.session_state.sort_by = col_name
+                    st.session_state.sort_ascending = False # Por defecto, de mayor a menor
+                st.rerun()
+
+    # 3. Aplicar la ordenación matemática en Python antes de generar el HTML bonito
+    columna_a_ordenar = st.session_state.sort_by
+    
+    # Función auxiliar para limpiar formatos ("1.250,45 €" -> 1250.45) y poder ordenar numéricamente
+    def limpiar_para_ordenar(val):
+        if isinstance(val, list):  # Caso especial: Minigráficos (Sparklines)
+            return val[-1] if len(val) > 0 else 0
+        val_str = str(val).strip().replace(/[.%€]/g, '').replace(/\s/g, '')
+        val_str = val_str.replace('.', '').replace(',', '.') # Convertir formato europeo a float
+        try:
+            return float(val_str)
+        except ValueError:
+            return str(val).lower()
+
+    # Creamos una columna temporal invisible para ordenar con precisión
+    df_clean["_sort_key"] = df_clean[columna_a_ordenar].apply(limpiar_para_ordenar)
+    df_clean = df_clean.sort_values(by="_sort_key", ascending=st.session_state.sort_ascending).drop(columns=["_sort_key"])
+
+    # 4. Renderizar tu TABLA PREMIUM ORIGINAL (HTML/CSS intacto)
+    html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    for col in df_clean.columns:
+        # Resaltamos el título de la columna por la que está ordenada actualmente
+        estilo_activo = ' style="color: #3b82f6 !important;"' if col == columna_a_ordenar else ""
+        html_table += f'<th{estilo_activo}>{col}</th>'
+    html_table += '</tr></thead><tbody>'
+    
+    for _, row in df_clean.iterrows():
+        if row.astype(str).str.strip().eq("").all():
+            continue
+        html_table += '<tr>'
+        for col in df_clean.columns:
+            val = row[col]
+            
+            if isinstance(val, list):
+                sparkline_content = generate_sparkline_svg(val)
+                html_table += f'<td>{sparkline_content}</td>'
+                continue
+                
+            val_str = str(val).strip()
+            if val_str == "nan" or val_str == "None":
+                val_str = ""
+            cell_class = ""
+            if cols_color_render and col in cols_color_render and val_str:
+                if "-" in val_str:
+                    cell_class = ' class="neg-val"'
+                elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
+                    cell_class = ' class="pos-val"'
+            html_table += f'<td{cell_class}>{val_str}</td>'
+        html_table += '</tr>'
+    html_table += '</tbody></table></div>'
+    
+    st.markdown(html_table, unsafe_allow_html=True)
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
