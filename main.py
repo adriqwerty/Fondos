@@ -182,24 +182,19 @@ def generate_sparkline_svg(values):
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    # 1. Leer la ordenación actual directamente de los parámetros de la URL de Streamlit
+    # 1. Leer la ordenación actual de la URL
     params = st.query_params
-    sort_by = params.get("sort", df_clean.columns[0]) # Por defecto, primera columna
-    sort_desc = params.get("desc", "true") == "true"   # Por defecto, descendente (mayor a menor)
+    sort_by = params.get("sort", df_clean.columns[0])
+    sort_desc = params.get("desc", "true") == "true"
 
-    # 2. Aplicar la ordenación matemática en Python antes de generar el HTML
+    # 2. Función matemática de limpieza de datos en Python puro
     def limpiar_para_ordenar(val):
-        if isinstance(val, list):  # Caso especial: Minigráficos (Sparklines)
+        if isinstance(val, list):
             return val[-1] if len(val) > 0 else 0
-            
-        # Convertimos a cadena y limpiamos los caracteres de texto uno a uno (Python puro)
         val_str = str(val).strip()
         for caracter in [".", "%", "€", " "]:
             val_str = val_str.replace(caracter, "")
-            
-        # Convertimos el formato europeo (coma decimal) al formato matemático (punto decimal)
         val_str = val_str.replace(',', '.') 
-        
         try:
             return float(val_str)
         except ValueError:
@@ -209,11 +204,10 @@ def render_financial_table(df_styled, cols_color_render=None):
         df_clean["_sort_key"] = df_clean[sort_by].apply(limpiar_para_ordenar)
         df_clean = df_clean.sort_values(by="_sort_key", ascending=not sort_desc).drop(columns=["_sort_key"])
 
-    # 3. Renderizar tu TABLA PREMIUM ORIGINAL (HTML/CSS intacto)
+    # 3. CONSTRUCCIÓN DEL ENCABEZADO (Aquí evitamos las f-strings complejas que rompen el HTML)
     html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
     
     for col in df_clean.columns:
-        # Si ya está ordenada por esta columna, invertimos el orden para el próximo clic, si no, ordenamos desc
         if col == sort_by:
             proximo_desc = "false" if sort_desc else "true"
             indicador = " ▴" if not sort_desc else " ▾"
@@ -223,21 +217,17 @@ def render_financial_table(df_styled, cols_color_render=None):
             indicador = ""
             estilo_activo = ""
             
-        # Creamos un enlace nativo que cambia la URL. Usamos target="_self" para que no abra pestaña nueva
         enlace_url = f"?sort={col}&desc={proximo_desc}"
         
-        # Inyectamos el enlace directamente dentro del <th> manteniendo tu CSS intacto
-        html_table += f"""
-        <th{estilo_activo}>
-            <a href="{enlace_url}" target="_self" style="color: inherit; text-decoration: none; display: block; width: 100%; height: 100%;">
-                {col}{indicador}
-            </a>
-        </th>
-        """
+        # Concatenamos de forma tradicional y segura para el motor de Streamlit
+        html_table += '<th' + estilo_activo + '>'
+        html_table += '<a href="' + enlace_url + '" target="_self" style="color: inherit; text-decoration: none; display: block; width: 100%; height: 100%;">'
+        html_table += col + indicador
+        html_table += '</a></th>'
         
     html_table += '</tr></thead><tbody>'
     
-    # 4. Construcción del cuerpo de la tabla (Exactamente tu código original)
+    # 4. CUERPO DE LA TABLA
     for _, row in df_clean.iterrows():
         if row.astype(str).str.strip().eq("").all():
             continue
@@ -261,9 +251,11 @@ def render_financial_table(df_styled, cols_color_render=None):
                     cell_class = ' class="pos-val"'
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
+        
     html_table += '</tbody></table></div>'
     
-    st.markdown(html_table, unsafe_allow_html=True)
+    # 5. RENDERIZADO FINAL DIRECTO
+    st.html(html_table)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
