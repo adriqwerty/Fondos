@@ -126,6 +126,7 @@ st.markdown("""
         padding: 12px 16px;
         border-bottom: 1px solid #334155;
         font-weight: 500;
+        vertical-align: middle;
     }
     table.financial-table tbody tr:last-child td {
         border-bottom: none;
@@ -139,8 +140,43 @@ st.markdown("""
     }
     .pos-val { color: #10b981 !important; font-weight: 700; }
     .neg-val { color: #f43f5e !important; font-weight: 700; }
+    .sparkline-container { display: flex; justify-content: center; align-items: center; }
     </style>
 """, unsafe_allow_html=True)
+
+def generate_sparkline_svg(values):
+    """Genera un minigráfico en SVG nativo a partir de una lista de floats."""
+    if not isinstance(values, list) or len(values) < 2:
+        return ""
+    try:
+        values = [float(v) for v in values]
+    except:
+        return ""
+    
+    min_v, max_v = min(values), max(values)
+    rng = max_v - min_v if max_v != min_v else 1
+    
+    width, height = 120, 30
+    padding = 2
+    
+    points = []
+    for i, v in enumerate(values):
+        x = padding + (i / (len(values) - 1)) * (width - 2 * padding)
+        y = (height - padding) - ((v - min_v) / rng) * (height - 2 * padding)
+        points.append(f"{x},{y}")
+    
+    polyline_str = " ".join(points)
+    color = "#10b981" if values[-1] >= values[0] else "#f43f5e"
+    
+    svg = f"""
+    <div class="sparkline-container">
+        <svg width="{width}" height="{height}">
+            <polyline fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
+            <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="3" fill="{color}"/>
+        </svg>
+    </div>
+    """
+    return svg
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
@@ -154,7 +190,15 @@ def render_financial_table(df_styled, cols_color_render=None):
             continue
         html_table += '<tr>'
         for col in df_clean.columns:
-            val_str = str(row[col]).strip()
+            val = row[col]
+            
+            # 🎯 Si el valor es una lista, renderizamos el Sparkline SVG
+            if isinstance(val, list):
+                sparkline_content = generate_sparkline_svg(val)
+                html_table += f'<td>{sparkline_content}</td>'
+                continue
+                
+            val_str = str(val).strip()
             if val_str == "nan" or val_str == "None":
                 val_str = ""
             cell_class = ""
@@ -213,14 +257,12 @@ with st.sidebar:
     
     if archivo_csv is not None:
         try:
-            # 🛠️ Forzamos inicialmente lectura como texto para evitar interpretaciones locales
             nuevo_df = pd.read_csv(archivo_csv, sep=';', dtype=str)
             columnas_banco = ["Fecha de la orden", "ISIN", "Importe estimado", "Nº de participaciones"]
             
             if not all(col in nuevo_df.columns for col in columnas_banco):
                 st.error("❌ El formato del CSV no coincide con las columnas esperadas del banco.")
             else:
-                # 🛠️ LIMPIEZA ABSOLUTA DE COMAS EN EL IMPORTE
                 nuevo_df["Importe estimado"] = (
                     nuevo_df["Importe estimado"]
                     .str.replace(" EUR", "", case=False)
@@ -230,7 +272,6 @@ with st.sidebar:
                     .astype(float)
                 )
                 
-                # 🛠️ LIMPIEZA ABSOLUTA DE COMAS EN EL NÚMERO DE PARTICIPACIONES
                 nuevo_df["Nº de participaciones"] = (
                     nuevo_df["Nº de participaciones"]
                     .str.replace(" ", "")
@@ -239,7 +280,6 @@ with st.sidebar:
                     .astype(float)
                 )
                 
-                # Al ser ambos ya floats puros con punto, el precio calculado nace limpio
                 nuevo_df["price"] = nuevo_df["Importe estimado"] / nuevo_df["Nº de participaciones"]
                 
                 sh_check = client.open_by_key(SPREADSHEET_ID)
@@ -454,6 +494,18 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
+# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 7 registros de VL por fondo)
+sparklines_dict = {}
+for f in funds:
+    f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
+    if not f_hist.empty:
+        # Extraemos los últimos 7 valores liquidativos como lista de floats
+        sparklines_dict[f] = f_hist.tail(7)["vl"].tolist()
+    else:
+        sparklines_dict[f] = []
+
+final["Tendencia (7d)"] = final["fund"].map(sparklines_dict)
+
 final = final.rename(columns={
     "fund": "Fondo", "invertido": "Invertido", "valor_actual": "Valor actual", "beneficio": "Ganancia",
     "rentabilidad": "Rentabilidad (%)", "%_1d": "1 día (%)", "%_7d": "7 días (%)", "%_30d": "1 mes (%)",
@@ -465,14 +517,12 @@ portfolio = portfolio.dropna(subset=["value"])
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
-portfolio["1d (€)"] = portfolio["value"].diff(1)  # 👈 Calculamos la diferencia en euros de hoy vs ayer
+portfolio["1d (€)"] = portfolio["value"].diff(1)
 
 
 last = portfolio.iloc[-2]
 
-# --- Cálculo para el gráfico circular ---
 datos_circular = final.copy()
-# Aseguramos que 'Valor actual' sea numérico para el gráfico
 datos_circular["Valor actual"] = pd.to_numeric(
     datos_circular["Valor actual"].astype(str).str.replace(" €", "").str.replace(",", ""), 
     errors="coerce"
@@ -480,8 +530,6 @@ datos_circular["Valor actual"] = pd.to_numeric(
 # ==========================================
 # VISTA GENERAL Y PANELES
 # ==========================================
-#st.markdown("<h3 style='font-size: 20px; font-weight: 700; color: #f8fafc; margin-top: 5px; margin-bottom: 20px;'>💼 Evolución de la Inversión</h3>", unsafe_allow_html=True)
-#st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 with kpi1:
@@ -493,11 +541,8 @@ with kpi3:
     color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
     st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
 with kpi4:
-    # Extraemos los valores diarios calculados
     var_porcentaje = last["1d (%)"]
     var_euros = last["1d (€)"]
-    
-    # Decidimos color y signo dinámico
     color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
     signo = "+" if var_porcentaje >= 0 else ""
     
@@ -518,7 +563,6 @@ tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.ta
 
 # TAB 1: RESUMEN DE FONDOS
 with tab_resumen:
-    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Distribución analítica por fondo</h3>", unsafe_allow_html=True)
     final_html = final.copy()
     final_html["Invertido"] = final_html["Invertido"].map("{:,.2f} €".format)
     final_html["Valor actual"] = final_html["Valor actual"].map("{:,.2f} €".format)
@@ -528,16 +572,23 @@ with tab_resumen:
     final_html["7 días (%)"] = final_html["7 días (%)"].map("{:.2f} %".format)
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    
+    # Reordenamos las columnas para mover el minitrabajo de Tendencia al lado de los datos clave
+    columnas_ordenadas = [
+        "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
+        "Tendencia (7d)", "1 día (%)", "7 días (%)", "1 mes (%)", "Última actualización"
+    ]
+    final_html = final_html[columnas_ordenadas]
+    
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
 
-# TAB 2: GRÁFICOS (VERSIÓN PRO CON AUTO-ZOOM Y CENTRADO)
+# TAB 2: GRÁFICOS
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
     portfolio_graph = dense_filtered.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date")
     portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
 
-    # 🎯 Calculamos un suelo dinámico (el valor mínimo menos un 2% de margen)
     val_min = min(portfolio_graph["value"].min(), portfolio_graph["invested"].min())
     suelo_grafico = val_min * 0.98 
 
@@ -560,7 +611,7 @@ with tab_graficos:
             name="Valor Cartera", 
             mode="lines", 
             line=dict(color="#3b82f6", width=3),
-            fill='tonexty', # Rellena de forma elegante entre las líneas
+            fill='tonexty',
             fillcolor='rgba(59, 130, 246, 0.05)' 
         ))
         
@@ -576,7 +627,7 @@ with tab_graficos:
             yaxis=dict(
                 showgrid=True, 
                 gridcolor="rgba(51, 65, 85, 0.4)",
-                range=[suelo_grafico, portfolio_graph["value"].max() * 1.02] # 👈 Forzamos el rango óptimo
+                range=[suelo_grafico, portfolio_graph["value"].max() * 1.02]
             )
         )
         st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
@@ -584,7 +635,6 @@ with tab_graficos:
     with col_g2:
         fig2 = go.Figure()
         
-        # Ganancia Neta
         fig2.add_trace(go.Scatter(
             x=portfolio_graph["date"], 
             y=portfolio_graph["profit"], 
@@ -616,7 +666,6 @@ with tab_graficos:
 
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
-    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>📊 Historial Cronológico de Rendimientos</h3>", unsafe_allow_html=True)
     df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
     df_evo_html = df_view_evo.copy()
     df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
@@ -626,10 +675,8 @@ with tab_evolucion:
     render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
 
 
-
 # TAB 4: DETALLE DE APORTACIONES
 with tab_detalles:
-    #st.markdown("<h3 style='font-size: 16px; font-weight: 600; color: #f8fafc; margin-top: 10px; margin-bottom: 16px;'>🔍 Historial completo de movimientos</h3>", unsafe_allow_html=True)
     col_select, _ = st.columns([1.5, 2])
     with col_select:
         fondo = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
@@ -651,17 +698,17 @@ with tab_detalles:
     df_detalles_html["Rentabilidad (%)"] = df_detalles_html["Rentabilidad (%)"].map("{:.2f} %".format)
     render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
 
+# TAB 5: DISTRIBUCIÓN
 with tab_distribucion:
     import plotly.express as px
     
-    # 🎨 Paleta con degradados visuales simulados (tonos vivos con alto contraste)
     colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
     
     fig_pie = px.pie(
         datos_circular, 
         values="Valor actual", 
         names="Fondo",
-        hole=0.40,  # Reducimos el agujero para que haya más masa de color y se aprecie el efecto volumétrico
+        hole=0.40, 
         color_discrete_sequence=colores_premium
     )
     
@@ -671,29 +718,22 @@ with tab_distribucion:
         plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False,
         margin=dict(t=10, b=10, l=10, r=10),
-        height=600  # 🚀 ¡Más grande! Subimos de 450px a 600px para que domine la pantalla
+        height=600 
     )
     
-    # ✨ Efectos volumétricos y sombreado premium
     fig_pie.update_traces(
         textinfo='percent+label', 
         textposition='inside',
         insidetextorientation='radial',
         textfont=dict(size=14, color="#ffffff", family="Inter, sans-serif", weight="bold"),
-        
-        # 🌟 EL TRUCO DEL EFECTO 3D: Sombreado interno y bordes de profundidad
         marker=dict(
-            line=dict(color='#0b111e', width=4),  # Líneas de división oscuras que hunden el diseño
+            line=dict(color='#0b111e', width=4), 
             colors=colores_premium
         ),
-        
-        # Pull sutil: Separa ligeramente las porciones hacia afuera dando volumen de explosión 3D
         pull=[0.03] * len(datos_circular), 
-        
         hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Porcentaje: %{percent}<extra></extra>"
     )
     
-    # Renderizado usando una columna central mucho más ancha para maximizar el tamaño
     _, col_grande, _ = st.columns([0.3, 3.4, 0.3])
     with col_grande:
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
