@@ -211,11 +211,10 @@ def render_financial_table(df_styled, cols_color_render=None):
                     cell_class = ' class="neg-val"'
                 elif val_str != "0.00 %" and val_str != "0.00 €" and any(char.isdigit() for char in val_str):
                     cell_class = ' class="pos-val"'
-            html_table += f'<td{cell_class}>{val_str}</td>'
+                html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
     
-    # Renderizado directo mediante st.html para evitar nodos parásito de Markdown
     st.html(html_table)
 
 
@@ -524,7 +523,8 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-last = portfolio.iloc[-2]
+# 🎯 CORRECCIÓN CLAVE: Cambiado de iloc[-2] (penúltimo) a iloc[-1] (último real disponible)
+last = portfolio.iloc[-1]
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
@@ -532,29 +532,28 @@ datos_circular["Valor actual"] = pd.to_numeric(
     errors="coerce"
 )
 
-# ==========================================
-# CÁLCULO DE VARIACIÓN MENSUAL (DESDE EL DÍA 1 DEL MES)
-# ==========================================
+# ======================================================================
+# CÁLCULO DE VARIACIÓN MENSUAL EXACTO DESDE DÍA 1 DEL MES (MTD)
+# ======================================================================
 var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
 
 if not portfolio.empty:
-    # 1. Obtener el año y mes actual de la última fecha del portfolio
     ultima_fecha = pd.to_datetime(last["date"])
     año_actual = ultima_fecha.year
     mes_actual = ultima_fecha.month
     
-    # 2. Filtrar el histórico para obtener solo los días del mes actual
+    # Filtrar estrictamente histórico del mes en curso
     df_mes_actual = portfolio[
         (pd.to_datetime(portfolio["date"]).dt.year == año_actual) & 
         (pd.to_datetime(portfolio["date"]).dt.month == mes_actual)
     ].sort_values("date")
     
-    # 3. Validar si tenemos datos suficientes en el mes actual (al menos 2 días para notar variación)
+    # Si hay suficientes días cargados en el mes
     if len(df_mes_actual) >= 2:
-        registro_inicial_mes = df_mes_actual.iloc[0]  # Primer día registrado de este mes
+        registro_inicial_mes = df_mes_actual.iloc[0]
     else:
-        # Fallback: Si es principio de mes y hay pocos datos, busca desde el día 1 del mes anterior
+        # Fallback inteligente: buscar el primer día del mes anterior
         fecha_hace_un_mes = ultima_fecha - pd.DateOffset(months=1)
         df_mes_anterior = portfolio[
             (pd.to_datetime(portfolio["date"]).dt.year == fecha_hace_un_mes.year) & 
@@ -564,13 +563,10 @@ if not portfolio.empty:
         if not df_mes_anterior.empty:
             registro_inicial_mes = df_mes_anterior.iloc[0]
         else:
-            registro_inicial_mes = portfolio.iloc[0] # Último recurso: primer registro de la historia
+            registro_inicial_mes = portfolio.iloc[0]
             
-    # 4. Calcular variaciones finales
     var_mensual_euros = last["value"] - registro_inicial_mes["value"]
     var_mensual_porcentaje = (var_mensual_euros / registro_inicial_mes["value"]) * 100 if registro_inicial_mes["value"] else 0
-
-
 
 
 # ==========================================
@@ -628,7 +624,7 @@ with kpi3:
     """, unsafe_allow_html=True)
 
 with kpi4:
-    # 📅 Nueva: Variación Mensual (30d)
+    # 📅 Variación Mensual Exacta (MTD)
     color_var_m = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_m = "+" if var_mensual_porcentaje >= 0 else ""
     
@@ -639,8 +635,7 @@ with kpi4:
                 {signo_m}{var_mensual_euros:,.2f} €
             </p>
             <p style="margin: 2px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
-    Desde el día 1: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
-</p>
+                Desde el día 1: <span style="color: {color_var_m}; font-weight: 600;">{signo_m}{var_mensual_porcentaje:.2f}%</span>
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -751,74 +746,3 @@ with tab_graficos:
             )
         )
         st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
-
-# TAB 3: HISTORIAL DE EVOLUCIÓN
-with tab_evolucion:
-    df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
-    df_evo_html = df_view_evo.copy()
-    df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-    df_evo_html["Invertido"] = df_evo_html["Invertido"].map("{:,.2f} €".format)
-    df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
-    df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
-    render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
-
-# TAB 4: DETALLE DE APORTACIONES
-with tab_detalles:
-    col_select, _ = st.columns([1.5, 2])
-    with col_select:
-        fondo = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
-
-    df_filtrado = df[df["fund"] == fondo] if fondo != "Todos" else df.copy()
-    df_view = df_filtrado.sort_values("date", ascending=False).rename(columns={
-        "date": "Fecha", "amount": "Invertido", "price": "Precio", "fund":"Fondo", "isin":"ISIN",
-        "current_price": "Precio Actual", "valor_actual": "Valor Actual", "beneficio": "Ganancia", "rentabilidad": "Rentabilidad (%)"
-    })
-    df_view = df_view[["Fecha", "Fondo", "ISIN", "Invertido", "Valor Actual", "Precio", "Precio Actual", "Ganancia", "Rentabilidad (%)"]]
-
-    df_detalles_html = df_view.copy()
-    df_detalles_html["Fecha"] = df_detalles_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-    df_detalles_html["Invertido"] = df_detalles_html["Invertido"].map("{:,.2f} €".format)
-    df_detalles_html["Precio"] = df_detalles_html["Precio"].map("{:,.2f} €".format)
-    df_detalles_html["Precio Actual"] = df_detalles_html["Precio Actual"].map("{:,.2f} €".format)
-    df_detalles_html["Valor Actual"] = df_detalles_html["Valor Actual"].map("{:,.2f} €".format)
-    df_detalles_html["Ganancia"] = df_detalles_html["Ganancia"].map("{:,.2f} €".format)
-    df_detalles_html["Rentabilidad (%)"] = df_detalles_html["Rentabilidad (%)"].map("{:.2f} %".format)
-    render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad (%)"])
-
-# TAB 5: DISTRIBUCIÓN
-with tab_distribucion:
-    colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
-    
-    fig_pie = px.pie(
-        datos_circular, 
-        values="Valor actual", 
-        names="Fondo",
-        hole=0.40, 
-        color_discrete_sequence=colores_premium
-    )
-    
-    fig_pie.update_layout(
-        template="plotly_dark",
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,
-        margin=dict(t=10, b=10, l=10, r=10),
-        height=600 
-    )
-    
-    fig_pie.update_traces(
-        textinfo='percent+label', 
-        textposition='inside',
-        insidetextorientation='radial',
-        textfont=dict(size=14, color="#ffffff", family="Inter, sans-serif", weight="bold"),
-        marker=dict(
-            line=dict(color='#0b111e', width=4), 
-            colors=colores_premium
-        ),
-        pull=[0.03] * len(datos_circular), 
-        hovertemplate="<b>%{label}</b><br>Valor: %{value:,.2f} €<br>Porcentaje: %{percent}<extra></extra>"
-    )
-    
-    _, col_grande, _ = st.columns([0.3, 3.4, 0.3])
-    with col_grande:
-        st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
