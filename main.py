@@ -191,8 +191,15 @@ def render_financial_table(df_styled, cols_color_render=None):
     def limpiar_para_ordenar(val):
         if isinstance(val, list):  # Caso especial: Minigráficos (Sparklines)
             return val[-1] if len(val) > 0 else 0
-        val_str = str(val).strip().replace(/[.%€]/g, '').replace(/\s/g, '')
-        val_str = val_str.replace('.', '').replace(',', '.') # Quita puntos de miles y maneja coma decimal
+            
+        # Convertimos a cadena y limpiamos los caracteres de texto uno a uno (Python puro)
+        val_str = str(val).strip()
+        for caracter in [".", "%", "€", " "]:
+            val_str = val_str.replace(caracter, "")
+            
+        # Convertimos el formato europeo (coma decimal) al formato matemático (punto decimal)
+        val_str = val_str.replace(',', '.') 
+        
         try:
             return float(val_str)
         except ValueError:
