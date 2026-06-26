@@ -186,7 +186,6 @@ def generate_sparkline_svg(values):
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    # 🚀 Generamos un ID único para cada tabla por si tienes varias pestañas, evitando conflictos
     import time
     tabla_id = f"sortable-table-{int(time.time()*1000)}"
     
@@ -220,16 +219,13 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
     
-    # ✨ JAVASCRIPT CORREGIDO (Delegación global y ejecución forzada)
+    # 🔥 SOLUCIÓN DEFINITIVA: Forzamos la ejecución usando un truco con un elemento HTML síncrono.
+    # En lugar de esperar al DOM de Streamlit, inyectamos un script que se autoejecuta inmediatamente.
     js_script = f"""
-    <script>
-    (function() {{
-        const initSort = () => {{
-            const table = document.getElementById("{tabla_id}");
-            if (!table) return;
-            
-            // Si ya tiene los listeners puestos, no los duplicamos
-            if (table.getAttribute('data-sorted-init') === 'true') return;
+    <div style="display:none;">
+        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="(function() {{
+            const table = document.getElementById('{tabla_id}');
+            if (!table || table.getAttribute('data-sorted-init') === 'true') return;
             table.setAttribute('data-sorted-init', 'true');
 
             table.querySelectorAll('thead th').forEach((header, index) => {{
@@ -241,19 +237,16 @@ def render_financial_table(df_styled, cols_color_render=None):
                     
                     const parseValue = (cell) => {{
                         if (!cell) return '';
-                        // Caso especial: Minigráfico
                         const spark = cell.querySelector('.sparkline-container');
                         if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
                         
-                        // Limpieza de formatos de moneda, porcentajes y puntos de miles
                         let text = cell.textContent.trim();
                         if (!text) return -Infinity; 
                         
-                        // Si parece un número con formato europeo (1.234,56 € o -4,25 %)
                         let cleanText = text.replace(/[.%€]/g, '')
-                                            .replace(/\s/g, '')
-                                            .replace(/\./g, '') // Quita puntos de miles
-                                            .replace(',', '.');  // Cambia coma decimal por punto
+                                            .replace(/\\s/g, '')
+                                            .replace(/\\./g, '') 
+                                            .replace(',', '.');  
                         
                         const num = parseFloat(cleanText);
                         return isNaN(num) ? text.toLowerCase() : num;
@@ -273,21 +266,15 @@ def render_financial_table(df_styled, cols_color_render=None):
 
                     table.querySelectorAll('thead th').forEach(th => th.removeAttribute('data-order'));
                     header.setAttribute('data-order', newDirection);
-                    
-                    // Reinyectar filas ordenadas
                     tbody.append(...rows);
                 }});
             }});
-        }};
-
-        // Forzar ejecución inmediata y en diferido por si Streamlit tarda un milisegundo en pintar
-        initSort();
-        setTimeout(initSort, 100);
-        setTimeout(initSort, 500);
-    }})();
-    </script>
+        }})();">
+    </div>
     """
-    st.write(html_table + js_script, unsafe_allow_html=True)
+    
+    # Combinamos todo en un único string de HTML e inyectamos permitiendo HTML inseguro
+    st.markdown(html_table + js_script, unsafe_allow_html=True)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
