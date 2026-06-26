@@ -577,7 +577,7 @@ with tab_resumen:
     # Reordenamos las columnas para mover el minitrabajo de Tendencia al lado de los datos clave
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
-         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (30d)", "Última actualización"
+         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Última actualización"
     ]
     final_html = final_html[columnas_ordenadas]
     
