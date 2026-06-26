@@ -186,55 +186,12 @@ def generate_sparkline_svg(values):
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
     
-    # 1. Inicializar el estado de ordenación en la memoria de Streamlit si no existe
-    if "sort_by" not in st.session_state:
-        st.session_state.sort_by = df_clean.columns[0]  # Por defecto, ordena por la primera columna
-        st.session_state.sort_ascending = True
-
-    # 2. Crear una fila de botones sutiles arriba de la tabla para ordenar
-    # (Esto simula el clic en el encabezado de forma nativa y ultra-rápida)
-    st.markdown("<p style='font-size: 12px; color: #94a3b8; margin-bottom: 5px; font-weight: 500;'>🔽 Haz clic para ordenar la tabla por:</p>", unsafe_allow_html=True)
+    import time
+    tabla_id = f"sortable-table-{int(time.time()*1000)}"
     
-    # Renderizamos los botones alineados horizontalmente
-    cols_botones = st.columns(len(df_clean.columns))
-    for idx, col_name in enumerate(df_clean.columns):
-        with cols_botones[idx]:
-            # El botón muestra una flecha si es la columna activa
-            flecha = " 🔼" if st.session_state.sort_by == col_name and st.session_state.sort_ascending else (" 🔽" if st.session_state.sort_by == col_name else "")
-            
-            if st.button(f"{col_name}{flecha}", key=f"btn_sort_{col_name}", use_container_width=True):
-                if st.session_state.sort_by == col_name:
-                    # Si vuelve a pulsar la misma, invierte el orden
-                    st.session_state.sort_ascending = not st.session_state.sort_ascending
-                else:
-                    st.session_state.sort_by = col_name
-                    st.session_state.sort_ascending = False # Por defecto, de mayor a menor
-                st.rerun()
-
-    # 3. Aplicar la ordenación matemática en Python antes de generar el HTML bonito
-    columna_a_ordenar = st.session_state.sort_by
-    
-    # Función auxiliar para limpiar formatos ("1.250,45 €" -> 1250.45) y poder ordenar numéricamente
-    def limpiar_para_ordenar(val):
-        if isinstance(val, list):  # Caso especial: Minigráficos (Sparklines)
-            return val[-1] if len(val) > 0 else 0
-        val_str = str(val).strip().replace(/[.%€]/g, '').replace(/\s/g, '')
-        val_str = val_str.replace('.', '').replace(',', '.') # Convertir formato europeo a float
-        try:
-            return float(val_str)
-        except ValueError:
-            return str(val).lower()
-
-    # Creamos una columna temporal invisible para ordenar con precisión
-    df_clean["_sort_key"] = df_clean[columna_a_ordenar].apply(limpiar_para_ordenar)
-    df_clean = df_clean.sort_values(by="_sort_key", ascending=st.session_state.sort_ascending).drop(columns=["_sort_key"])
-
-    # 4. Renderizar tu TABLA PREMIUM ORIGINAL (HTML/CSS intacto)
-    html_table = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    html_table = f'<div class="financial-table-container"><table class="financial-table" id="{tabla_id}"><thead><tr>'
     for col in df_clean.columns:
-        # Resaltamos el título de la columna por la que está ordenada actualmente
-        estilo_activo = ' style="color: #3b82f6 !important;"' if col == columna_a_ordenar else ""
-        html_table += f'<th{estilo_activo}>{col}</th>'
+        html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
     
     for _, row in df_clean.iterrows():
@@ -262,7 +219,63 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
     
-    st.markdown(html_table, unsafe_allow_html=True)
+    # 🔥 SOLUCIÓN DEFINITIVA: Forzamos la ejecución usando un truco con un elemento HTML síncrono.
+    # En lugar de esperar al DOM de Streamlit, inyectamos un script que se autoejecuta inmediatamente.
+    js_script = f"""
+    <div style="display:none;">
+        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="(function() {{
+            const table = document.getElementById('{tabla_id}');
+            if (!table || table.getAttribute('data-sorted-init') === 'true') return;
+            table.setAttribute('data-sorted-init', 'true');
+
+            table.querySelectorAll('thead th').forEach((header, index) => {{
+                header.addEventListener('click', () => {{
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const currentDirection = header.getAttribute('data-order') || 'desc';
+                    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                    
+                    const parseValue = (cell) => {{
+                        if (!cell) return '';
+                        const spark = cell.querySelector('.sparkline-container');
+                        if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
+                        
+                        let text = cell.textContent.trim();
+                        if (!text) return -Infinity; 
+                        
+                        let cleanText = text.replace(/[.%€]/g, '')
+                                            .replace(/\\s/g, '')
+                                            .replace(/\\./g, '') 
+                                            .replace(',', '.');  
+                        
+                        const num = parseFloat(cleanText);
+                        return isNaN(num) ? text.toLowerCase() : num;
+                    }};
+
+                    rows.sort((rowA, rowB) => {{
+                        const valA = parseValue(rowA.children[index]);
+                        const valB = parseValue(rowB.children[index]);
+                        
+                        if (typeof valA === 'number' && typeof valB === 'number') {{
+                            return newDirection === 'asc' ? valA - valB : valB - valA;
+                        }}
+                        return newDirection === 'asc' 
+                            ? String(valA).localeCompare(String(valB)) 
+                            : String(valB).localeCompare(String(valA));
+                    }});
+
+                    table.querySelectorAll('thead th').forEach(th => th.removeAttribute('data-order'));
+                    header.setAttribute('data-order', newDirection);
+                    tbody.append(...rows);
+                }});
+            }});
+        }})();">
+    </div>
+    """
+    
+    # Combinamos todo en un único string de HTML e inyectamos permitiendo HTML inseguro
+    st.markdown(html_table + js_script, unsafe_allow_html=True)
+
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
