@@ -605,6 +605,21 @@ with kpi3:
             </p>
         </div>
     """, unsafe_allow_html=True)
+with kpi4:
+    var_porcentaje = var_mensual_porcentaje
+    var_euros = var_mensual_euros
+    color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
+    signo = "+" if var_porcentaje >= 0 else ""
+    
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>
+            <p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">
+                {signo}{var_euros:,.2f} € 
+                <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">({signo}{var_porcentaje:.2f}%)</span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
