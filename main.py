@@ -121,6 +121,12 @@ st.markdown("""
         font-size: 12px;
         letter-spacing: 0.5px;
         color: #cbd5e1 !important;
+        cursor: pointer; /* 🎨 Cursor interactivo */
+        user-select: none;
+    }
+    table.financial-table th:hover {
+        background-color: #1e293b; /* 🌟 Feedback visual al pasar el ratón */
+        color: #3b82f6 !important;
     }
     table.financial-table td {
         padding: 12px 16px;
@@ -145,7 +151,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def generate_sparkline_svg(values):
-    """Genera un minigráfico en SVG nativo a partir de una lista de floats."""
     if not isinstance(values, list) or len(values) < 2:
         return ""
     try:
@@ -169,7 +174,7 @@ def generate_sparkline_svg(values):
     color = "#10b981" if values[-1] >= values[0] else "#f43f5e"
     
     svg = f"""
-    <div class="sparkline-container">
+    <div class="sparkline-container" data-sparkline-val="{values[-1]}">
         <svg width="{width}" height="{height}">
             <polyline fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
             <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="3" fill="{color}"/>
@@ -180,7 +185,9 @@ def generate_sparkline_svg(values):
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    
+    # 🚀 Le añadimos un ID único a la tabla para que JavaScript la localice limpiamente
+    html_table = f'<div class="financial-table-container"><table class="financial-table" id="sortable-table"><thead><tr>'
     for col in df_clean.columns:
         html_table += f'<th>{col}</th>'
     html_table += '</tr></thead><tbody>'
@@ -192,7 +199,6 @@ def render_financial_table(df_styled, cols_color_render=None):
         for col in df_clean.columns:
             val = row[col]
             
-            # 🎯 Si el valor es una lista, renderizamos el Sparkline SVG
             if isinstance(val, list):
                 sparkline_content = generate_sparkline_svg(val)
                 html_table += f'<td>{sparkline_content}</td>'
@@ -210,7 +216,53 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    st.write(html_table, unsafe_allow_html=True)
+    
+    # ✨ JAVASCRIPT INTELIGENTE: Ordena texto, números limpios, porcentajes (€/%) e incluso celdas con minigráficos
+    js_script = """
+    <script>
+    document.querySelectorAll('#sortable-table th').forEach((header, index) => {
+        header.addEventListener('click', () => {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const isNumeric = header.classList.contains('num-sort') || index > 0; // Asumimos numérico si no es la primera col
+            const currentDirection = header.getAttribute('data-order') || 'asc';
+            const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            
+            const parseValue = (cell) => {
+                // Si la celda contiene un minigráfico, extraemos el valor numérico final guardado en el contenedor
+                const spark = cell.querySelector('.sparkline-container');
+                if (spark) return parseFloat(spark.getAttribute('data-sparkline-val')) || 0;
+                
+                let text = cell.textContent.replace(/[.%€,]/g, (match) => {
+                    if (match === ',') return '.';
+                    return '';
+                }).replace(/\s/g, '').trim();
+                
+                return isNaN(parseFloat(text)) ? cell.textContent.trim().toLowerCase() : parseFloat(text);
+            };
+
+            rows.sort((rowA, rowB) => {
+                const valA = parseValue(rowA.children[index]);
+                const valB = parseValue(rowB.children[index]);
+                
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return newDirection === 'asc' ? valA - valB : valB - valA;
+                }
+                return newDirection === 'asc' 
+                    ? String(valA).localeCompare(String(valB)) 
+                    : String(valB).localeCompare(String(valA));
+            });
+
+            table.querySelectorAll('th').forEach(th => th.removeAttribute('data-order'));
+            header.setAttribute('data-order', newDirection);
+            
+            tbody.append(...rows);
+        });
+    });
+    </script>
+    """
+    st.write(html_table + js_script, unsafe_allow_html=True)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
@@ -494,17 +546,16 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 7 registros de VL por fondo)
+# 🎯 TENDENCIA (Últimos 30 registros de VL por fondo - 1 Mes)
 sparklines_dict = {}
 for f in funds:
     f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
     if not f_hist.empty:
-        # Extraemos los últimos 7 valores liquidativos como lista de floats
         sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
     else:
         sparklines_dict[f] = []
 
-final["Tendencia (30d)"] = final["fund"].map(sparklines_dict)
+final["Tendencia (1m)"] = final["fund"].map(sparklines_dict)
 
 final = final.rename(columns={
     "fund": "Fondo", "invertido": "Invertido", "valor_actual": "Valor actual", "beneficio": "Ganancia",
@@ -518,7 +569,6 @@ portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
-
 
 last = portfolio.iloc[-2]
 
@@ -573,10 +623,9 @@ with tab_resumen:
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
-    # Reordenamos las columnas para mover el minitrabajo de Tendencia al lado de los datos clave
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
-         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (30d)", "Última actualización"
+        "Tendencia (1m)", "1 día (%)", "7 días (%)", "1 mes (%)", "Última actualización"
     ]
     final_html = final_html[columnas_ordenadas]
     
