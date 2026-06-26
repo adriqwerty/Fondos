@@ -181,11 +181,30 @@ def generate_sparkline_svg(values):
 
 def render_financial_table(df_styled, cols_color_render=None):
     df_clean = df_styled.dropna(how='all').reset_index(drop=True)
-    html_table = f'<div class="financial-table-container"><table class="financial-table"><thead><tr>'
+    
+    # 1. Inicio de la tabla HTML con ID único para que JavaScript la encuentre
+    html_table = """
+    <div class="financial-table-container">
+        <table class="financial-table" id="tabla-financiera">
+            <thead>
+                <tr>
+    """
+    
+    # 2. Generamos los encabezados <th> normales (sin enlaces de recarga)
+    # Añadimos un atributo 'data-type' para que JS sepa si es texto o número
     for col in df_clean.columns:
-        html_table += f'<th>{col}</th>'
+        if col in ["Fondo", "Última actualización"]:
+            tipo_dato = "texto"
+        elif "Tendencia" in col:
+            tipo_dato = "sparkline"
+        else:
+            tipo_dato = "numero"
+            
+        html_table += f'<th data-type="{tipo_dato}" style="cursor: pointer; position: relative;">{col}</th>'
+        
     html_table += '</tr></thead><tbody>'
     
+    # 3. Cuerpo de la tabla (Tu código original intacto)
     for _, row in df_clean.iterrows():
         if row.astype(str).str.strip().eq("").all():
             continue
@@ -193,10 +212,11 @@ def render_financial_table(df_styled, cols_color_render=None):
         for col in df_clean.columns:
             val = row[col]
             
-            # 🎯 Si el valor es una lista, renderizamos el Sparkline SVG
             if isinstance(val, list):
                 sparkline_content = generate_sparkline_svg(val)
-                html_table += f'<td>{sparkline_content}</td>'
+                # Guardamos el último valor en un atributo oculto para que JS pueda ordenar los gráficos
+                ultimo_val = val[-1] if len(val) > 0 else 0
+                html_table += f'<td data-sort="{ultimo_val}">{sparkline_content}</td>'
                 continue
                 
             val_str = str(val).strip()
@@ -211,7 +231,57 @@ def render_financial_table(df_styled, cols_color_render=None):
             html_table += f'<td{cell_class}>{val_str}</td>'
         html_table += '</tr>'
     html_table += '</tbody></table></div>'
-    st.write(html_table, unsafe_allow_html=True)
+    
+    # 4. EL TRUCO MAGICO: Inyectamos JavaScript nativo ultra-rápido
+    # Este script intercepta los clics en los <th>, limpia los formatos de moneda/porcentaje y ordena las filas en milisegundos sin tocar el servidor.
+    js_script = """
+    <script>
+    (function() {
+        const table = document.getElementById('tabla-financiera');
+        if (!table) return;
+        const headers = table.querySelectorAll('th');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        headers.forEach((header, index) => {
+            let asc = true;
+            header.addEventListener('click', () => {
+                // Alternar dirección
+                asc = !asc;
+                
+                // Limpiar indicadores visuales de otros headers
+                headers.forEach(h => { if(h !== header) h.style.color = ''; });
+                header.style.color = '#3b82f6'; // Iluminamos en azul la columna activa
+                
+                const type = header.getAttribute('data-type');
+                
+                const sortedRows = rows.sort((a, b) => {
+                    let valA = a.children[index].innerText || a.children[index].getAttribute('data-sort') || '';
+                    let valB = b.children[index].innerText || b.children[index].getAttribute('data-sort') || '';
+                    
+                    if (type === 'numero' || type === 'sparkline') {
+                        // Limpieza ultra-rápida de formatos europeos a números reales en JS
+                        let numA = parseFloat(valA.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '')) || 0;
+                        let numB = parseFloat(valB.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '')) || 0;
+                        return asc ? numA - numB : numB - numA;
+                    } else {
+                        return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    }
+                });
+                
+                // Re-inyectar las filas ya ordenadas en el navegador directamente
+                while (tbody.firstChild) {
+                    tbody.removeChild(tbody.firstChild);
+                }
+                tbody.append(...sortedRows);
+            });
+        });
+    })();
+    </script>
+    """
+    
+    # Unimos la tabla y el script, y lo mostramos de forma segura
+    st.html(html_table + js_script)
 
 
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
