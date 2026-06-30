@@ -500,17 +500,28 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA REAL SINCRONIZADA (Últimos 30 días naturales filtrados por fecha)
+# ==============================================================================
+# 🎯 EXTRACCIÓN DE LA TENDENCIA CORREGIDA POR DÍAS HÁBILES (SINCRONIZACIÓN TOTAL)
+# ==============================================================================
 sparklines_dict = {}
 ultima_fecha_global = hist_df["date"].max()
-fecha_inicio_mes = ultima_fecha_global - pd.Timedelta(days=30)
+fecha_teorica_30d = ultima_fecha_global - pd.Timedelta(days=30)
 
 for f in funds:
-    f_hist = hist_df[(hist_df["fund"] == f) & (hist_df["date"] >= fecha_inicio_mes)].sort_values("date")
-    if not f_hist.empty:
-        sparklines_dict[f] = f_hist["vl"].tolist()
+    f_hist_total = hist_df[hist_df["fund"] == f]
+    
+    # Buscamos exactamente el mismo punto de origen que usó 'calc_changes' (último día hábil disponible)
+    datos_pasados = f_hist_total[f_hist_total["date"] <= fecha_teorica_30d]
+    
+    if not datos_pasados.empty:
+        fecha_inicio_real = datos_pasados["date"].max() 
     else:
-        sparklines_dict[f] = []
+        fecha_inicio_real = f_hist_total["date"].min()
+
+    # Filtramos la serie temporal del sparkline partiendo exactamente de esa misma fila base
+    f_hist_grafico = f_hist_total[f_hist_total["date"] >= fecha_inicio_real].sort_values("date")
+    
+    sparklines_dict[f] = f_hist_grafico["vl"].tolist()
 
 final["Tendencia (1m)"] = final["fund"].map(sparklines_dict)
 
