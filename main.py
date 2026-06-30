@@ -420,7 +420,6 @@ def load_prices():
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
-df = df.drop_duplicates(subset=["date", "fund", "amount", "price"])
 
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
@@ -485,8 +484,11 @@ grid = pd.MultiIndex.from_product([all_dates, funds], names=["date", "fund"]).to
 evolution = grid.merge(daily_cash, on=["date", "fund"], how="left")
 evolution = evolution.merge(daily_units, on=["date", "fund"], how="left")
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
-hist_df = hist_df[["date", "fund", "vl"]]
-evolution = evolution.merge(hist_df, on=["date", "fund"], how="left")
+
+# 🛡️ FILTRO ANTIDUPLICADOS: Limpieza del histórico de VL antes del cruce temporal
+hist_df_lookup = hist_df[["date", "fund", "vl"]].drop_duplicates(subset=["date", "fund"])
+
+evolution = evolution.merge(hist_df_lookup, on=["date", "fund"], how="left")
 evolution = evolution.sort_values(["fund", "date"])
 evolution["vl"] = evolution.groupby("fund")["vl"].ffill()
 
@@ -504,7 +506,7 @@ final = final.sort_values("order", na_position="last").drop(columns=["order"])
 # 🎯 EXTRACCIÓN DE LA TENDENCIA SINCRONIZADA
 sparklines_dict = {}
 for f in funds:
-    f_hist = hist_df[hist_df["fund"] == f].sort_values("date").reset_index(drop=True)
+    f_hist = hist_df_lookup[hist_df_lookup["fund"] == f].sort_values("date").reset_index(drop=True)
     if not f_hist.empty:
         last_date = f_hist["date"].iloc[-1]
         month_date = last_date - pd.Timedelta(days=30)
@@ -532,7 +534,7 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-last = portfolio.iloc[-2]
+last = portfolio.iloc[-1] # Ajustado a -1 para tomar el último elemento real disponible
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
@@ -614,7 +616,7 @@ tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.ta
     "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "⚖️ Distribución", "🔍 Detalle de Aportaciones"
 ])
 
-# TAB 1: RESUMEN DE FONDOS (CON COLUMNA PRECIO VL AÑADIDA)
+# TAB 1: RESUMEN DE FONDOS
 with tab_resumen:
     final_html = final.copy()
     final_html["Invertido"] = final_html["Invertido"].map("{:,.2f} €".format)
@@ -628,7 +630,6 @@ with tab_resumen:
     
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
-    # 🎯 AGREGADO AQUÍ: Reordenamos las columnas exponiendo el "Precio VL" al lado de la tendencia
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
         "1 día (%)", "7 días (%)", "1 mes (%)", "Tendencia (1m)", "Precio VL", "Última actualización"
@@ -636,11 +637,7 @@ with tab_resumen:
     final_html = final_html[columnas_ordenadas]
     
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
-    st.write(
-    dense[dense["date"] == pd.Timestamp("2026-06-26")][
-        ["date", "fund", "invested", "cum_invested"]
-    ]
-)
+
 # TAB 2: GRÁFICOS
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
@@ -679,13 +676,19 @@ with tab_evolucion:
 # TAB 4: DISTRIBUCIÓN
 with tab_distribucion:
     st.markdown("<p style='font-size: 14px; color: #cbd5e1;'>Distribución actual por fondos.</p>", unsafe_allow_html=True)
+    if not datos_circular.empty:
+        fig_pie = go.Figure(data=[go.Pie(labels=datos_circular["Fondo"], values=datos_circular["Valor actual"], hole=.4, textinfo='percent+label')])
+        fig_pie.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=20, r=20, t=20, b=20), height=500)
+        st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
 # TAB 5: DETALLE DE APORTACIONES
 with tab_detalles:
     col_select, _ = st.columns([1.5, 2])
     with col_select:
         fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
+    
     df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
+    
     if not df_detalles_filtrado.empty:
         df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
         df_detalles_html = pd.DataFrame()
@@ -697,9 +700,10 @@ with tab_detalles:
         df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
         df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
         df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
+        
         render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
     else:
-        st.info("No se encontraron aportaciones registradas.")
+        st.info("No se encontraron aportaciones para el criterio seleccionado.")
 # TAB 5: DISTRIBUCIÓN
 with tab_distribucion:
     import plotly.express as px
