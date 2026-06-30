@@ -609,31 +609,31 @@ with kpi4:
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
-    # 🎯 Extraemos el histórico de los últimos 30 días para reflejar la tendencia del mes
+    # 🎯 Extraemos el histórico de los últimos 30 días
     portfolio_mes = portfolio.tail(30)
     valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
     
-    # Generamos el SVG usando tu función nativa
-    sparkline_mes_html = generate_sparkline_svg(valores_mes)
+    # Generamos el SVG y le quitamos saltos de línea molestos que confunden a Streamlit
+    sparkline_mes_html = generate_sparkline_svg(valores_mes).replace("\n", "").strip()
     
-    st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                <div>
-                    <p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">
-                        {signo_mes}{var_mensual_euros:,.2f} €
-                    </p>
-                    <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
-                        ({signo_mes}{var_mensual_porcentaje:.2f}%)
-                    </p>
-                </div>
-                <div style="margin-top: -10px; width: 100px;">
-                    {sparkline_mes_html}
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    # Construimos el contenedor HTML en una sola línea limpia para evitar fugas de texto
+    kpi4_html = (
+        f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
+        f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
+        f'<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">'
+        f'<div>'
+        f'<p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">{signo_mes}{var_mensual_euros:,.2f} €</p>'
+        f'<p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">({signo_mes}{var_mensual_porcentaje:.2f}%)</p>'
+        f'</div>'
+        f'<div style="margin-top: -10px; width: 100px;">{sparkline_mes_html}</div>'
+        f'</div>'
+        f'</div>'
+    )
+    
+    st.markdown(kpi4_html, unsafe_allow_html=True)
+
+# Separador estético
+st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
