@@ -613,10 +613,11 @@ with kpi4:
     portfolio_mes = portfolio.tail(30)
     valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
     
-    # Generamos el SVG y le quitamos saltos de línea molestos que confunden a Streamlit
+    # Generamos el SVG, limpiamos saltos de línea y forzamos a que use el ancho disponible
     sparkline_mes_html = generate_sparkline_svg(valores_mes).replace("\n", "").strip()
+    sparkline_mes_html = sparkline_mes_html.replace('<svg width="120" height="30">', '<svg width="100%" height="35" style="display: block;">')
     
-    # Construimos el contenedor HTML en una sola línea limpia para evitar fugas de texto
+    # Contenedor optimizado con más espacio para el minigráfico
     kpi4_html = (
         f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
         f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
@@ -625,7 +626,7 @@ with kpi4:
         f'<p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">{signo_mes}{var_mensual_euros:,.2f} €</p>'
         f'<p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">({signo_mes}{var_mensual_porcentaje:.2f}%)</p>'
         f'</div>'
-        f'<div style="margin-top: -10px; width: 100px;">{sparkline_mes_html}</div>'
+        f'<div style="width: 130px; margin-left: 10px;">{sparkline_mes_html}</div>'
         f'</div>'
         f'</div>'
     )
