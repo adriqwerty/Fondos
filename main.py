@@ -635,7 +635,11 @@ with tab_resumen:
     final_html = final_html[columnas_ordenadas]
     
     render_financial_table(final_html, cols_color_render=["Ganancia", "1 día (%)", "7 días (%)", "1 mes (%)", "Rentabilidad (%)"])
-
+    st.write(
+    dense[dense["date"] == pd.Timestamp("2026-06-26")][
+        ["date", "fund", "invested", "cum_invested"]
+    ]
+)
 # TAB 2: GRÁFICOS
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
