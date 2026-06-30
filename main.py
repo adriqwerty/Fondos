@@ -495,13 +495,33 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 7 registros de VL por fondo)
+# 🎯 EXTRACCIÓN DE LA TENDENCIA (Último mes - mismo criterio que % 1 mes)
 sparklines_dict = {}
+
 for f in funds:
-    f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
+    f_hist = (
+        hist_df[hist_df["fund"] == f]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
     if not f_hist.empty:
-        # Extraemos los últimos 7 valores liquidativos como lista de floats
-        sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
+        last_date = f_hist["date"].iloc[-1]
+        month_date = last_date - pd.Timedelta(days=30)
+
+        # Primer registro utilizado para el cálculo del % mensual
+        month_data = f_hist[f_hist["date"] <= month_date]
+
+        if not month_data.empty:
+            start_date = month_data.iloc[-1]["date"]
+        else:
+            start_date = f_hist.iloc[0]["date"]
+
+        # Tendencia desde el mismo punto que el % mensual
+        sparklines_dict[f] = (
+            f_hist[f_hist["date"] >= start_date]["vl"]
+            .tolist()
+        )
     else:
         sparklines_dict[f] = []
 
