@@ -513,7 +513,7 @@ for f in funds:
     else:
         sparklines_dict[f] = []
 
-final["Tendencia (1m)"] = final["fund"].map(sparklines_dict))
+final["Tendencia (1m)"] = final["fund"].map(sparklines_dict)
 
 final = final.rename(columns={
     "fund": "Fondo", "invertido": "Invertido", "valor_actual": "Valor actual", "beneficio": "Ganancia",
