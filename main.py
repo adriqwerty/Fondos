@@ -500,16 +500,20 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 30 registros de VL por fondo)
+# 🎯 EXTRACCIÓN DE LA TENDENCIA REAL (Últimos 30 días naturales filtrados por fecha)
 sparklines_dict = {}
+ultima_fecha_global = hist_df["date"].max()
+fecha_inicio_mes = ultima_fecha_global - pd.Timedelta(days=30)
+
 for f in funds:
-    f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
+    # Filtramos el histórico del fondo estrictamente dentro de los últimos 30 días naturales
+    f_hist = hist_df[(hist_df["fund"] == f) & (hist_df["date"] >= fecha_inicio_mes)].sort_values("date")
     if not f_hist.empty:
-        sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
+        sparklines_dict[f] = f_hist["vl"].tolist()
     else:
         sparklines_dict[f] = []
 
-final["Tendencia (1m)"] = final["fund"].map(sparklines_dict)
+final["Tendencia (1m)"] = final["fund"].map(sparklines_dict))
 
 final = final.rename(columns={
     "fund": "Fondo", "invertido": "Invertido", "valor_actual": "Valor actual", "beneficio": "Ganancia",
