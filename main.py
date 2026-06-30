@@ -609,25 +609,20 @@ with kpi4:
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
-    # 1. Extraemos el histórico de los últimos 30 días
     portfolio_mes = portfolio.tail(30)
     valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
     
     sparkline_mes_html = ""
     if len(valores_mes) >= 2:
-        # El valor de referencia es el primer día de la serie (Día 1 del mes/periodo)
         referencia = valores_mes[0]
         min_v, max_v = min(valores_mes), max(valores_mes)
         rng = max_v - min_v if max_v != min_v else 1
         
-        # Calculamos la posición porcentual de la línea de referencia en el eje Y (de abajo hacia arriba)
-        # En SVG el 0% es arriba y el 100% es abajo, por lo que invertimos el cálculo
         pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
-        # Nos aseguramos de que esté dentro de los límites de seguridad (5% a 95%)
         pct_referencia = max(5, min(95, pct_referencia))
         
-        # Construimos los puntos del SVG manualmente
-        width, height = 120, 35
+        # 🌟 Ampliamos el width base del SVG a 150 para darle más recorrido horizontal
+        width, height = 150, 35
         padding = 2
         points = []
         for i, v in enumerate(valores_mes):
@@ -637,27 +632,24 @@ with kpi4:
         polyline_str = " ".join(points)
         ultimo_x, ultimo_y = points[-1].split(",")
         
-        # Creamos el SVG con un gradiente lineal vertical de parada brusca (hard-edge stop)
-        # Todo lo que esté por encima de pct_referencia será verde (#10b981) y lo de abajo rojo (#f43f5e)
         sparkline_mes_html = f"""
-        <div class="sparkline-container">
-            <svg width="100%" height="{height}" style="display: block;">
+        <div class="sparkline-container" style="width: 100%;">
+            <svg width="100%" height="{height}" viewBox="0 0 {width} {height}" preserveAspectRatio="none" style="display: block;">
                 <defs>
-                    <linearGradient id="bicolorGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <linearGradient id="bicolorGradientKPI" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#10b981" />
                         <stop offset="{pct_referencia}%" stop-color="#10b981" />
                         <stop offset="{pct_referencia}%" stop-color="#f43f5e" />
                         <stop offset="100%" stop-color="#f43f5e" />
                     </linearGradient>
                 </defs>
-                <line x1="{padding}" y1="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" x2="{width-padding}" y2="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1" stroke-dasharray="2,2" />
-                <polyline fill="none" stroke="url(#bicolorGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
+                <line x1="{padding}" y1="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" x2="{width-padding}" y2="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" stroke="rgba(148, 163, 184, 0.15)" stroke-width="1" stroke-dasharray="2,2" />
+                <polyline fill="none" stroke="url(#bicolorGradientKPI)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
                 <circle cx="{ultimo_x}" cy="{ultimo_y}" r="3" fill="{color_var_mes}"/>
             </svg>
         </div>
         """.replace("\n", "").strip()
 
-    # Contenedor final del KPI
     kpi4_html = (
         f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
         f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
@@ -666,11 +658,10 @@ with kpi4:
         f'<p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">{signo_mes}{var_mensual_euros:,.2f} €</p>'
         f'<p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">({signo_mes}{var_mensual_porcentaje:.2f}%)</p>'
         f'</div>'
-        f'<div style="width: 130px; margin-left: 10px;">{sparkline_mes_html}</div>'
+        f'<div style="width: 150px; margin-left: 10px; flex-shrink: 0;">{sparkline_mes_html}</div>'
         f'</div>'
         f'</div>'
     )
-    
     st.markdown(kpi4_html, unsafe_allow_html=True)
 
 # Separador estético
