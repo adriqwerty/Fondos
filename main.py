@@ -622,7 +622,7 @@ with kpi4:
         pct_referencia = max(5, min(95, pct_referencia))
         
         # 🌟 Ampliamos el width base del SVG a 150 para darle más recorrido horizontal
-        width, height = 150, 35
+        width, height = 180, 35
         padding = 2
         points = []
         for i, v in enumerate(valores_mes):
