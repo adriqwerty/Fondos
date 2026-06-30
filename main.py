@@ -626,20 +626,28 @@ with kpi4:
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
-    portfolio_mes = portfolio.tail(30)
+    # 🎯 FILTRO MTD: Filtrar el portfolio para quedarnos SOLO con los días del mes actual
+    hoy = datetime.date.today()
+    # Si estás en el año de tu base de datos, extraemos año y mes actual:
+    # (Suponiendo que el índice o columna 'date' es de tipo datetime)
+    portfolio_mes = portfolio[
+        (portfolio["date"].dt.year == hoy.year) & 
+        (portfolio["date"].dt.month == hoy.month)
+    ].sort_values("date")
+    
     valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
     
     sparkline_mes_html = ""
+    # Necesitamos al menos 2 días del mes actual para dibujar una línea
     if len(valores_mes) >= 2:
-        referencia = valores_mes[0]
+        referencia = valores_mes[0] # El primer día del mes actual
         min_v, max_v = min(valores_mes), max(valores_mes)
         rng = max_v - min_v if max_v != min_v else 1
         
         pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
         pct_referencia = max(5, min(95, pct_referencia))
         
-        # 🌟 Ampliamos el width base del SVG a 150 para darle más recorrido horizontal
-        width, height = 180, 35
+        width, height = 150, 35
         padding = 2
         points = []
         for i, v in enumerate(valores_mes):
@@ -666,7 +674,18 @@ with kpi4:
             </svg>
         </div>
         """.replace("\n", "").strip()
+    
+    elif len(valores_mes) == 1:
+        # Si es el día 1 del mes y solo hay un dato, pintamos un punto neutral temporal
+        sparkline_mes_html = f"""
+        <div class="sparkline-container" style="width: 100%; display: flex; align-items: center; justify-content: center;">
+            <svg width="100%" height="35">
+                <circle cx="75" cy="17.5" r="4" fill="#94a3b8" />
+            </svg>
+        </div>
+        """
 
+    # Contenedor final del KPI 4
     kpi4_html = (
         f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
         f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
@@ -680,6 +699,7 @@ with kpi4:
         f'</div>'
     )
     st.markdown(kpi4_html, unsafe_allow_html=True)
+
 
 # Separador estético
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
