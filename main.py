@@ -606,9 +606,34 @@ with kpi3:
     st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{var_euros:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({signo}{var_porcentaje:.2f}%)</span></p></div>', unsafe_allow_html=True)
 
 with kpi4:
-    color_var = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
-    signo = "+" if var_mensual_porcentaje >= 0 else ""
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{var_mensual_euros:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({signo}{var_mensual_porcentaje:.2f}%)</span></p></div>', unsafe_allow_html=True)
+    color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
+    signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
+    
+    # 🎯 Extraemos el histórico de los últimos 30 días para reflejar la tendencia del mes
+    portfolio_mes = portfolio.tail(30)
+    valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
+    
+    # Generamos el SVG usando tu función nativa
+    sparkline_mes_html = generate_sparkline_svg(valores_mes)
+    
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <div>
+                    <p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">
+                        {signo_mes}{var_mensual_euros:,.2f} €
+                    </p>
+                    <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
+                        ({signo_mes}{var_mensual_porcentaje:.2f}%)
+                    </p>
+                </div>
+                <div style="margin-top: -10px; width: 100px;">
+                    {sparkline_mes_html}
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
