@@ -146,7 +146,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def generate_sparkline_svg(values):
-    """Genera un minigráfico en SVG nativo a partir de una lista de floats."""
+    """Genera un minigráfico bicolor en SVG nativo usando el primer valor como referencia."""
     if not isinstance(values, list) or len(values) < 2:
         return ""
     try:
@@ -156,6 +156,11 @@ def generate_sparkline_svg(values):
     
     min_v, max_v = min(values), max(values)
     rng = max_v - min_v if max_v != min_v else 1
+    
+    # Referencia: primer valor del histórico guardado
+    referencia = values[0]
+    pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
+    pct_referencia = max(5, min(95, pct_referencia))
     
     width, height = 120, 30
     padding = 2
@@ -167,13 +172,25 @@ def generate_sparkline_svg(values):
         points.append(f"{x},{y}")
     
     polyline_str = " ".join(points)
-    color = "#10b981" if values[-1] >= values[0] else "#f43f5e"
+    color_final = "#10b981" if values[-1] >= values[0] else "#f43f5e"
+    
+    # Usamos un ID único usando hashes de los puntos para evitar conflictos entre las filas de la tabla
+    gradient_id = f"grad_{abs(hash(polyline_str))}"
     
     svg = f"""
     <div class="sparkline-container">
         <svg width="{width}" height="{height}">
-            <polyline fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
-            <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="3" fill="{color}"/>
+            <defs>
+                <linearGradient id="{gradient_id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#10b981" />
+                    <stop offset="{pct_referencia}%" stop-color="#10b981" />
+                    <stop offset="{pct_referencia}%" stop-color="#f43f5e" />
+                    <stop offset="100%" stop-color="#f43f5e" />
+                </linearGradient>
+            </defs>
+            <line x1="{padding}" y1="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" x2="{width-padding}" y2="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" stroke="rgba(148, 163, 184, 0.15)" stroke-width="1" stroke-dasharray="2,2" />
+            <polyline fill="none" stroke="url(#{gradient_id})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
+            <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="2.5" fill="{color_final}"/>
         </svg>
     </div>
     """
