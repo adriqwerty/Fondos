@@ -623,9 +623,7 @@ with tab_resumen:
     final_html["1 día (%)"] = final_html["1 día (%)"].map("{:.2f} %".format)
     final_html["7 días (%)"] = final_html["7 días (%)"].map("{:.2f} %".format)
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
-    
-    # 🎯 AGREGADO AQUÍ: Aplicamos formato de 4 decimales a la columna de cotización líquida
-    final_html["Precio VL"] = final_html["Precio VL"].map("{:,.4f} €".format)
+    final_html["Precio VL"] = final_html["Precio VL"].map("{:,.2f} €".format)
     
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
