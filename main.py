@@ -640,8 +640,8 @@ with tab_resumen:
     
     # 🎯 Se añade "Precio VL" al orden de las columnas expuestas
     columnas_ordenadas = [
-        "Fondo", "Invertido", "Precio VL", "Valor actual", "Ganancia", "Rentabilidad (%)", 
-         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Última actualización"
+        "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
+         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Precio VL", "Última actualización"
     ]
     final_html = final_html[columnas_ordenadas]
     
