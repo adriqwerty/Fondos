@@ -609,15 +609,55 @@ with kpi4:
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
-    # 🎯 Extraemos el histórico de los últimos 30 días
+    # 1. Extraemos el histórico de los últimos 30 días
     portfolio_mes = portfolio.tail(30)
     valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
     
-    # Generamos el SVG, limpiamos saltos de línea y forzamos a que use el ancho disponible
-    sparkline_mes_html = generate_sparkline_svg(valores_mes).replace("\n", "").strip()
-    sparkline_mes_html = sparkline_mes_html.replace('<svg width="120" height="30">', '<svg width="100%" height="35" style="display: block;">')
-    
-    # Contenedor optimizado con más espacio para el minigráfico
+    sparkline_mes_html = ""
+    if len(valores_mes) >= 2:
+        # El valor de referencia es el primer día de la serie (Día 1 del mes/periodo)
+        referencia = valores_mes[0]
+        min_v, max_v = min(valores_mes), max(valores_mes)
+        rng = max_v - min_v if max_v != min_v else 1
+        
+        # Calculamos la posición porcentual de la línea de referencia en el eje Y (de abajo hacia arriba)
+        # En SVG el 0% es arriba y el 100% es abajo, por lo que invertimos el cálculo
+        pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
+        # Nos aseguramos de que esté dentro de los límites de seguridad (5% a 95%)
+        pct_referencia = max(5, min(95, pct_referencia))
+        
+        # Construimos los puntos del SVG manualmente
+        width, height = 120, 35
+        padding = 2
+        points = []
+        for i, v in enumerate(valores_mes):
+            x = padding + (i / (len(valores_mes) - 1)) * (width - 2 * padding)
+            y = (height - padding) - ((v - min_v) / rng) * (height - 2 * padding)
+            points.append(f"{x},{y}")
+        polyline_str = " ".join(points)
+        ultimo_x, ultimo_y = points[-1].split(",")
+        
+        # Creamos el SVG con un gradiente lineal vertical de parada brusca (hard-edge stop)
+        # Todo lo que esté por encima de pct_referencia será verde (#10b981) y lo de abajo rojo (#f43f5e)
+        sparkline_mes_html = f"""
+        <div class="sparkline-container">
+            <svg width="100%" height="{height}" style="display: block;">
+                <defs>
+                    <linearGradient id="bicolorGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#10b981" />
+                        <stop offset="{pct_referencia}%" stop-color="#10b981" />
+                        <stop offset="{pct_referencia}%" stop-color="#f43f5e" />
+                        <stop offset="100%" stop-color="#f43f5e" />
+                    </linearGradient>
+                </defs>
+                <line x1="{padding}" y1="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" x2="{width-padding}" y2="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1" stroke-dasharray="2,2" />
+                <polyline fill="none" stroke="url(#bicolorGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
+                <circle cx="{ultimo_x}" cy="{ultimo_y}" r="3" fill="{color_var_mes}"/>
+            </svg>
+        </div>
+        """.replace("\n", "").strip()
+
+    # Contenedor final del KPI
     kpi4_html = (
         f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
         f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
