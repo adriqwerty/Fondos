@@ -534,7 +534,7 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
 portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-last = portfolio.iloc[-1] # Ajustado a -1 para tomar el último elemento real disponible
+last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real disponible
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
