@@ -500,28 +500,14 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# ==============================================================================
-# 🎯 EXTRACCIÓN DE LA TENDENCIA CORREGIDA POR DÍAS HÁBILES (SINCRONIZACIÓN TOTAL)
-# ==============================================================================
+# 🎯 EXTRACCIÓN DE LA TENDENCIA (Últimos 30 registros de VL por fondo)
 sparklines_dict = {}
-ultima_fecha_global = hist_df["date"].max()
-fecha_teorica_30d = ultima_fecha_global - pd.Timedelta(days=30)
-
 for f in funds:
-    f_hist_total = hist_df[hist_df["fund"] == f]
-    
-    # Buscamos exactamente el mismo punto de origen que usó 'calc_changes' (último día hábil disponible)
-    datos_pasados = f_hist_total[f_hist_total["date"] <= fecha_teorica_30d]
-    
-    if not datos_pasados.empty:
-        fecha_inicio_real = datos_pasados["date"].max() 
+    f_hist = hist_df[hist_df["fund"] == f].sort_values("date")
+    if not f_hist.empty:
+        sparklines_dict[f] = f_hist.tail(30)["vl"].tolist()
     else:
-        fecha_inicio_real = f_hist_total["date"].min()
-
-    # Filtramos la serie temporal del sparkline partiendo exactamente de esa misma fila base
-    f_hist_grafico = f_hist_total[f_hist_total["date"] >= fecha_inicio_real].sort_values("date")
-    
-    sparklines_dict[f] = f_hist_grafico["vl"].tolist()
+        sparklines_dict[f] = []
 
 final["Tendencia (1m)"] = final["fund"].map(sparklines_dict)
 
@@ -619,6 +605,7 @@ with kpi3:
     """, unsafe_allow_html=True)
 
 with kpi4:
+    # 🎨 CORRECCIÓN DE COLOR: Forzamos el color verde o rojo de acuerdo a las variables numéricas reales
     color_mes = "#10b981" if var_mensual_euros >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_euros >= 0 else ""
     
@@ -651,10 +638,10 @@ with tab_resumen:
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
-    # Columnas ordenadas exponiendo el Precio VL
+    # 🎯 Se añade "Precio VL" al orden de las columnas expuestas
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
-        "1 día (%)", "7 días (%)", "1 mes (%)", "Tendencia (1m)", "Precio VL", "Última actualización"
+         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Precio VL", "Última actualización"
     ]
     final_html = final_html[columnas_ordenadas]
     
