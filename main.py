@@ -500,13 +500,12 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
-# 🎯 EXTRACCIÓN DE LA TENDENCIA REAL (Últimos 30 días naturales filtrados por fecha)
+# 🎯 EXTRACCIÓN DE LA TENDENCIA REAL SINCRONIZADA (Últimos 30 días naturales filtrados por fecha)
 sparklines_dict = {}
 ultima_fecha_global = hist_df["date"].max()
 fecha_inicio_mes = ultima_fecha_global - pd.Timedelta(days=30)
 
 for f in funds:
-    # Filtramos el histórico del fondo estrictamente dentro de los últimos 30 días naturales
     f_hist = hist_df[(hist_df["fund"] == f) & (hist_df["date"] >= fecha_inicio_mes)].sort_values("date")
     if not f_hist.empty:
         sparklines_dict[f] = f_hist["vl"].tolist()
@@ -609,7 +608,6 @@ with kpi3:
     """, unsafe_allow_html=True)
 
 with kpi4:
-    # 🎨 CORRECCIÓN DE COLOR: Forzamos el color verde o rojo de acuerdo a las variables numéricas reales
     color_mes = "#10b981" if var_mensual_euros >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_euros >= 0 else ""
     
@@ -642,10 +640,10 @@ with tab_resumen:
     final_html["1 mes (%)"] = final_html["1 mes (%)"].map("{:.2f} %".format)
     final_html["Última actualización"] = final_html["Última actualización"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
     
-    # 🎯 Se añade "Precio VL" al orden de las columnas expuestas
+    # Columnas ordenadas exponiendo el Precio VL
     columnas_ordenadas = [
         "Fondo", "Invertido", "Valor actual", "Ganancia", "Rentabilidad (%)", 
-         "1 día (%)", "7 días (%)", "1 mes (%)","Tendencia (1m)", "Precio VL", "Última actualización"
+        "1 día (%)", "7 días (%)", "1 mes (%)", "Tendencia (1m)", "Precio VL", "Última actualización"
     ]
     final_html = final_html[columnas_ordenadas]
     
