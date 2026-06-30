@@ -673,13 +673,6 @@ with tab_evolucion:
     df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
     render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
 
-# TAB 4: DISTRIBUCIÓN
-with tab_distribucion:
-    st.markdown("<p style='font-size: 14px; color: #cbd5e1;'>Distribución actual por fondos.</p>", unsafe_allow_html=True)
-    if not datos_circular.empty:
-        fig_pie = go.Figure(data=[go.Pie(labels=datos_circular["Fondo"], values=datos_circular["Valor actual"], hole=.4, textinfo='percent+label')])
-        fig_pie.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=20, r=20, t=20, b=20), height=500)
-        st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
 # TAB 5: DETALLE DE APORTACIONES
 with tab_detalles:
@@ -704,6 +697,7 @@ with tab_detalles:
         render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
     else:
         st.info("No se encontraron aportaciones para el criterio seleccionado.")
+
 # TAB 5: DISTRIBUCIÓN
 with tab_distribucion:
     import plotly.express as px
