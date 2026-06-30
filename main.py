@@ -420,6 +420,7 @@ def load_prices():
 # ==========================================
 df = load_aportaciones(cfg["aportaciones"])
 price_map, hist_df = load_prices()
+df = df.drop_duplicates(subset=["date", "fund", "amount", "price"])
 
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 hist_df = hist_df.dropna(subset=["fund"])
