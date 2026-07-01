@@ -560,38 +560,45 @@ datos_circular["Valor actual"] = pd.to_numeric(
     errors="coerce"
 )
 
-# ==========================================
-# CÁLCULO DE VARIACIÓN MENSUAL (DESDE EL DÍA 1 DEL MES)
-# ==========================================
+# ==========================================================
+# CÁLCULO DE VARIACIÓN MENSUAL (DESDE EL DÍA 1 DEL MES EN CURSO)
+# ==========================================================
 var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
+valores_mes = []
 
 if not portfolio.empty:
-    ultima_fecha = pd.to_datetime(last["date"])
+    # 1. Asegurar que tratamos fechas nativas de datetime
+    portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
+    
+    # 2. Usar la última fecha real del portfolio o el día de hoy
+    ultima_fecha = portfolio["date_dt"].max()
     año_actual = ultima_fecha.year
     mes_actual = ultima_fecha.month
     
-    df_mes_actual = portfolio[
-        (pd.to_datetime(portfolio["date"]).dt.year == año_actual) & 
-        (pd.to_datetime(portfolio["date"]).dt.month == mes_actual)
-    ].sort_values("date")
+    # 3. Filtrar el portfolio para el mes actual (MTD)
+    portfolio_mes = portfolio[
+        (portfolio["date_dt"].dt.year == año_actual) & 
+        (portfolio["date_dt"].dt.month == mes_actual)
+    ].sort_values("date_dt")
     
-    if len(df_mes_actual) >= 2:
-        registro_inicial_mes = df_mes_actual.iloc[0]
-    else:
-        fecha_hace_un_mes = ultima_fecha - pd.DateOffset(months=1)
-        df_mes_anterior = portfolio[
-            (pd.to_datetime(portfolio["date"]).dt.year == fecha_hace_un_mes.year) & 
-            (pd.to_datetime(portfolio["date"]).dt.month == fecha_hace_un_mes.month)
-        ].sort_values("date")
+    if not portfolio_mes.empty:
+        valores_mes = portfolio_mes["value"].tolist()
         
-        if not df_mes_anterior.empty:
-            registro_inicial_mes = df_mes_anterior.iloc[0]
-        else:
-            registro_inicial_mes = portfolio.iloc[0]
-            
-    var_mensual_euros = last["value"] - registro_inicial_mes["value"]
-    var_mensual_porcentaje = (var_mensual_euros / registro_inicial_mes["value"]) * 100 if registro_inicial_mes["value"] else 0
+        # El dinero actual del final del mes (o último día registrado de este mes)
+        valor_final_mes = portfolio_mes["value"].iloc[-1]
+        # El dinero con el que empezó el mes (Día 1 o primer registro del mes)
+        valor_inicial_mes = portfolio_mes["value"].iloc[0]
+        
+        # Si solo hay 1 día en el mes, intentamos comparar contra el último día del mes anterior
+        if len(portfolio_mes) == 1:
+            mes_anterior = portfolio[portfolio["date_dt"] < portfolio_mes["date_dt"].iloc[0]]
+            if not mes_anterior.empty:
+                valor_inicial_mes = mes_anterior["value"].iloc[-1]
+        
+        # 4. Cálculo matemático del dinero acumulado del mes
+        var_mensual_euros = valor_final_mes - valor_inicial_mes
+        var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
 
 # ==========================================
 # VISTA GENERAL Y PANELES
