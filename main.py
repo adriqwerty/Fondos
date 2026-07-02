@@ -557,7 +557,6 @@ last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real di
 # ==========================================================
 # CÁLCULO DE VARIACIÓN DIARIA BASADO EN GANANCIAS REALES (CON SALTO DE FESTIVOS)
 # ==========================================================
-# 1. Agrupamos por fecha asegurando un único registro limpio por día
 portfolio_diario = portfolio.groupby("date", as_index=False).agg({
     "value": "last", 
     "invested": "last", 
@@ -568,41 +567,30 @@ var_euros = 0.0
 var_porcentaje = 0.0
 
 if len(portfolio_diario) >= 2:
-    # El último día disponible siempre será nuestra referencia actual
     idx_actual = len(portfolio_diario) - 1
     last_day = portfolio_diario.iloc[idx_actual]
-    last = last_day  # Sincroniza KPI 1 y KPI 2 con el último día real
+    last = last_day  # Sincroniza KPI 1 y KPI 2
     
-    # Buscamos hacia atrás el primer día que tenga una ganancia distinta
     idx_anterior = idx_actual - 1
     encontrado = False
     
     while idx_anterior >= 0:
         prev_day = portfolio_diario.iloc[idx_anterior]
-        
-        # Calculamos la diferencia de ganancia pura (profit)
         posible_var_euros = last_day["profit"] - prev_day["profit"]
         
-        # Si la variación es distinta de cero, hemos encontrado el último día de mercado activo
         if posible_var_euros != 0.0:
             var_euros = posible_var_euros
-            # La rentabilidad diaria se calcula sobre el valor total que tenía la cartera el día anterior
             var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
             encontrado = True
             break
-            
         idx_anterior -= 1
         
-    # Caso extremo: Si todo el histórico da 0 (ej. primer día), comparamos con el inmediatamente anterior
     if not encontrado:
         prev_day = portfolio_diario.iloc[idx_actual - 1]
         var_euros = last_day["profit"] - prev_day["profit"]
         var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
 else:
-    # Resguardo si no hay datos suficientes
     last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0}
-
-
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
@@ -618,15 +606,11 @@ var_mensual_euros = 0.0
 valores_mes = []
 
 if not portfolio.empty:
-    # 1. Asegurar que tratamos fechas nativas de datetime
     portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
-    
-    # 2. Usar la última fecha real del portfolio o el día de hoy
     ultima_fecha = portfolio["date_dt"].max()
     año_actual = ultima_fecha.year
     mes_actual = ultima_fecha.month
     
-    # 3. Filtrar el portfolio para el mes actual (MTD)
     portfolio_mes = portfolio[
         (portfolio["date_dt"].dt.year == año_actual) & 
         (portfolio["date_dt"].dt.month == mes_actual)
@@ -634,24 +618,19 @@ if not portfolio.empty:
     
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
-        
-        # El dinero actual del final del mes (o último día registrado de este mes)
         valor_final_mes = portfolio_mes["value"].iloc[-1]
-        # El dinero con el que empezó el mes (Día 1 o primer registro del mes)
         valor_inicial_mes = portfolio_mes["value"].iloc[0]
         
-        # Si solo hay 1 día en el mes, intentamos comparar contra el último día del mes anterior
         if len(portfolio_mes) == 1:
             mes_anterior = portfolio[portfolio["date_dt"] < portfolio_mes["date_dt"].iloc[0]]
             if not mes_anterior.empty:
                 valor_inicial_mes = mes_anterior["value"].iloc[-1]
         
-        # 4. Cálculo matemático del dinero acumulado del mes
         var_mensual_euros = valor_final_mes - valor_inicial_mes
         var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
 
 # ==========================================
-# VISTA GENERAL Y PANELES
+# VISTA GENERAL Y PANELES (KPIs RENDERIZADOS)
 # ==========================================
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
@@ -671,41 +650,29 @@ with kpi1:
 with kpi2:
     rentabilidad_total = (last["profit"] / last["invested"]) * 100 if last["invested"] else 0
     color_ganancia = "#10b981" if last["profit"] >= 0 else "#f43f5e"
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">🍀 Ganancia acumulada</p><p style="margin: 6px 0 0 0; font-size: 22px; font-weight: 700; color: {color_ganancia};">{last["profit"]:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({rentabilidad_total:.2f}%)</span></p></div>', unsafe_allow_html=True)
 
 with kpi3:
-    var_porcentaje = last["1d (%)"]
-    var_euros = last["1d (€)"]
+    # 🌟 CORREGIDO: Usamos var_porcentaje y var_euros calculados arriba con control de festivos
     color_var = "#10b981" if var_porcentaje >= 0 else "#f43f5e"
     signo = "+" if var_porcentaje >= 0 else ""
-    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p><p style="margin: 6px 0 0 0; font-size: 24px; font-weight: 700; color: {color_var};">{signo}{var_euros:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({signo}{var_porcentaje:.2f}%)</span></p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;"><p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Diaria</p><p style="margin: 6px 0 0 0; font-size: 22px; font-weight: 700; color: {color_var};">{signo}{var_euros:,.2f} € <span style="font-size: 13px; color: #94a3b8;">({signo}{var_porcentaje:.2f}%)</span></p></div>', unsafe_allow_html=True)
 
 with kpi4:
+    # 🌟 CORREGIDO: Sincronización e inyección limpia de variables mensuales sin duplicar filtros
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
-    # 🎯 FILTRO MTD: Filtrar el portfolio para quedarnos SOLO con los días del mes actual
-    hoy = datetime.date.today()
-    # Si estás en el año de tu base de datos, extraemos año y mes actual:
-    # (Suponiendo que el índice o columna 'date' es de tipo datetime)
-    portfolio_mes = portfolio[
-        (portfolio["date"].dt.year == hoy.year) & 
-        (portfolio["date"].dt.month == hoy.month)
-    ].sort_values("date")
-    
-    valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
-    
     sparkline_mes_html = ""
-    # Necesitamos al menos 2 días del mes actual para dibujar una línea
     if len(valores_mes) >= 2:
-        referencia = valores_mes[0] # El primer día del mes actual
+        referencia = valores_mes[0]
         min_v, max_v = min(valores_mes), max(valores_mes)
         rng = max_v - min_v if max_v != min_v else 1
         
         pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
         pct_referencia = max(5, min(95, pct_referencia))
         
-        width, height = 150, 35
+        width, height = 150, 25
         padding = 2
         points = []
         for i, v in enumerate(valores_mes):
@@ -716,7 +683,7 @@ with kpi4:
         ultimo_x, ultimo_y = points[-1].split(",")
         
         sparkline_mes_html = f"""
-        <div class="sparkline-container" style="width: 100%;">
+        <div class="sparkline-container" style="width: 100%; margin-top: 5px;">
             <svg width="100%" height="{height}" viewBox="0 0 {width} {height}" preserveAspectRatio="none" style="display: block;">
                 <defs>
                     <linearGradient id="bicolorGradientKPI" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -727,36 +694,21 @@ with kpi4:
                     </linearGradient>
                 </defs>
                 <line x1="{padding}" y1="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" x2="{width-padding}" y2="{(height-padding)-((referencia-min_v)/rng)*(height-2*padding)}" stroke="rgba(148, 163, 184, 0.15)" stroke-width="1" stroke-dasharray="2,2" />
-                <polyline fill="none" stroke="url(#bicolorGradientKPI)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
-                <circle cx="{ultimo_x}" cy="{ultimo_y}" r="3" fill="{color_var_mes}"/>
-            </svg>
-        </div>
-        """.replace("\n", "").strip()
-    
-    elif len(valores_mes) == 1:
-        # Si es el día 1 del mes y solo hay un dato, pintamos un punto neutral temporal
-        sparkline_mes_html = f"""
-        <div class="sparkline-container" style="width: 100%; display: flex; align-items: center; justify-content: center;">
-            <svg width="100%" height="35">
-                <circle cx="75" cy="17.5" r="4" fill="#94a3b8" />
+                <polyline fill="none" stroke="url(#bicolorGradientKPI)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="{polyline_str}"/>
+                <circle cx="{ultimo_x}" cy="{ultimo_y}" r="2.5" fill="{color_var_mes}"/>
             </svg>
         </div>
         """
-
-    # Contenedor final del KPI 4
-    kpi4_html = (
-        f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
-        f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
-        f'<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">'
-        f'<div>'
-        f'<p style="margin: 0; font-size: 20px; font-weight: 700; color: {color_var_mes};">{signo_mes}{var_mensual_euros:,.2f} €</p>'
-        f'<p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 500;">({signo_mes}{var_mensual_porcentaje:.2f}%)</p>'
-        f'</div>'
-        f'<div style="width: 150px; margin-left: 10px; flex-shrink: 0;">{sparkline_mes_html}</div>'
-        f'</div>'
-        f'</div>'
-    )
-    st.markdown(kpi4_html, unsafe_allow_html=True)
+        
+    st.markdown(f"""
+        <div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">📅 Variación Mensual (MTD)</p>
+            <p style="margin: 2px 0 0 0; font-size: 20px; font-weight: 700; color: {color_var_mes}; line-height: 1.2;">
+                {signo_mes}{var_mensual_euros:,.2f} € <span style="font-size: 12px; color: #94a3b8;">({signo_mes}{var_mensual_porcentaje:.2f}%)</span>
+            </p>
+            {sparkline_mes_html}
+        </div>
+    """, unsafe_allow_html=True)
 
 
 # Separador estético
