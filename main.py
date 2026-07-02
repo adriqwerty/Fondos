@@ -542,7 +542,7 @@ portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 
 portfolio["1d (€)"] = portfolio["profit"].diff(1)
 portfolio["1d (%)"] = (portfolio["1d (€)"] / portfolio["value"].shift(1)) * 100
-st.write(portfolio)
+
 
 last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0, "1d (%)": 0, "1d (€)": 0, "date": pd.Timestamp.today()}
 
@@ -569,7 +569,7 @@ if not portfolio.empty:
         (portfolio["date_dt"].dt.year == año_actual) & 
         (portfolio["date_dt"].dt.month == mes_actual)
     ].sort_values("date_dt")
-    
+    st.write(portfolio_mes)
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
         valor_final_mes = portfolio_mes["value"].iloc[-1]
