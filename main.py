@@ -569,13 +569,11 @@ if not portfolio.empty:
         (portfolio["date_dt"].dt.year == año_actual) & 
         (portfolio["date_dt"].dt.month == mes_actual)
     ].sort_values("date_dt")
-    st.write(portfolio_mes)
+
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
         valor_final_mes = portfolio["profit"].iloc[-1]
         valor_inicial_mes = portfolio_mes["profit"].iloc[0]
-        st.write(valor_inicial_mes)
-        st.write(valor_final_mes)
         
         
         var_mensual_euros = valor_final_mes - valor_inicial_mes
