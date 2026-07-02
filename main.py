@@ -157,7 +157,6 @@ def generate_sparkline_svg(values):
     min_v, max_v = min(values), max(values)
     rng = max_v - min_v if max_v != min_v else 1
     
-    # Referencia: primer valor del histórico guardado
     referencia = values[0]
     pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
     pct_referencia = max(5, min(95, pct_referencia))
@@ -173,7 +172,6 @@ def generate_sparkline_svg(values):
     
     polyline_str = " ".join(points)
     color_final = "#10b981" if values[-1] >= values[0] else "#f43f5e"
-    
     gradient_id = f"grad_{abs(hash(polyline_str))}"
     
     svg = f"""
@@ -208,7 +206,6 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '<tr>'
         for col in df_clean.columns:
             val = row[col]
-            
             if isinstance(val, list):
                 sparkline_content = generate_sparkline_svg(val)
                 html_table += f'<td>{sparkline_content}</td>'
@@ -500,6 +497,10 @@ hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 
 hist_df_lookup = hist_df[["date", "fund", "vl"]].drop_duplicates(subset=["date", "fund"])
 
+grid["date"] = pd.to_datetime(grid["date"])
+evolution["date"] = pd.to_datetime(evolution["date"])
+hist_df_lookup["date"] = pd.to_datetime(hist_df_lookup["date"])
+
 evolution = evolution.merge(hist_df_lookup, on=["date", "fund"], how="left")
 evolution = evolution.sort_values(["fund", "date"])
 evolution["vl"] = evolution.groupby("fund")["vl"].ffill()
@@ -538,14 +539,22 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
+dense["date"] = pd.to_datetime(dense["date"])
 portfolio = dense.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date").reset_index(drop=True)
 portfolio = portfolio.dropna(subset=["value"])
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
-portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
-portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0, "1d (%)": 0, "1d (€)": 0}
+# ==========================================================
+# 🎯 CORRECCIÓN CLAVE: VARIACIÓN DIARIA BASADA EN GANANCIA REAL
+# ==========================================================
+# Restamos la ganancia de hoy menos la ganancia de ayer para aislar las aportaciones de capital
+portfolio["1d (€)"] = portfolio["profit"].diff(1)
+# Rentabilidad diaria relativa al valor del día anterior
+portfolio["1d (%)"] = (portfolio["1d (€)"] / portfolio["value"].shift(1)) * 100
+
+# Apuntamos dinámicamente al último día real disponible (-1)
+last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0, "1d (%)": 0, "1d (€)": 0, "date": pd.Timestamp.today()}
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
@@ -554,7 +563,7 @@ datos_circular["Valor actual"] = pd.to_numeric(
 )
 
 # ==========================================================
-# CÁLCULO DE VARIACIÓN MENSUAL (CON UNIFICACIÓN DE TIPOS)
+# CÁLCULO DE VARIACIÓN MENSUAL (MTD)
 # ==========================================================
 var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
@@ -562,9 +571,9 @@ valores_mes = []
 
 if not portfolio.empty:
     portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
-    ultima_fecha = portfolio["date_dt"].max()
-    año_actual = ultima_fecha.year
-    mes_actual = ultima_fecha.month
+    ultima_fecha_datos = portfolio["date_dt"].max()
+    año_actual = ultima_fecha_datos.year
+    mes_actual = ultima_fecha_datos.month
     
     portfolio_mes = portfolio[
         (portfolio["date_dt"].dt.year == año_actual) & 
@@ -681,7 +690,6 @@ with kpi4:
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-# Pestañas alineadas con el orden real del código
 tab_resumen, tab_graficos, tab_evolucion, tab_distribucion, tab_detalles = st.tabs([
     "📋 Resumen de Fondos", "📈 Gráficos de Evolución", "📊 Historial de Evolución", "⚖️ Distribución", "🔍 Detalle de Aportaciones"
 ])
@@ -710,8 +718,6 @@ with tab_resumen:
 
 # TAB 2: GRÁFICOS
 with tab_graficos:
-    # Corrección: Forzamos a que 'date' sea datetime64 en vez de object para que el filtro funcione
-    dense["date"] = pd.to_datetime(dense["date"])
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
     
@@ -755,7 +761,6 @@ with tab_evolucion:
 # TAB 4: DISTRIBUCIÓN
 with tab_distribucion:
     import plotly.express as px
-    
     colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
     
     fig_pie = px.pie(
