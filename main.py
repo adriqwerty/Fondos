@@ -554,6 +554,56 @@ portfolio["1d (€)"] = portfolio["value"].diff(1)
 
 last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real disponible
 
+# ==========================================================
+# CÁLCULO DE VARIACIÓN DIARIA BASADO EN GANANCIAS REALES (CON SALTO DE FESTIVOS)
+# ==========================================================
+# 1. Agrupamos por fecha asegurando un único registro limpio por día
+portfolio_diario = portfolio.groupby("date", as_index=False).agg({
+    "value": "last", 
+    "invested": "last", 
+    "profit": "last"
+}).sort_values("date").reset_index(drop=True)
+
+var_euros = 0.0
+var_porcentaje = 0.0
+
+if len(portfolio_diario) >= 2:
+    # El último día disponible siempre será nuestra referencia actual
+    idx_actual = len(portfolio_diario) - 1
+    last_day = portfolio_diario.iloc[idx_actual]
+    last = last_day  # Sincroniza KPI 1 y KPI 2 con el último día real
+    
+    # Buscamos hacia atrás el primer día que tenga una ganancia distinta
+    idx_anterior = idx_actual - 1
+    encontrado = False
+    
+    while idx_anterior >= 0:
+        prev_day = portfolio_diario.iloc[idx_anterior]
+        
+        # Calculamos la diferencia de ganancia pura (profit)
+        posible_var_euros = last_day["profit"] - prev_day["profit"]
+        
+        # Si la variación es distinta de cero, hemos encontrado el último día de mercado activo
+        if posible_var_euros != 0.0:
+            var_euros = posible_var_euros
+            # La rentabilidad diaria se calcula sobre el valor total que tenía la cartera el día anterior
+            var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
+            encontrado = True
+            break
+            
+        idx_anterior -= 1
+        
+    # Caso extremo: Si todo el histórico da 0 (ej. primer día), comparamos con el inmediatamente anterior
+    if not encontrado:
+        prev_day = portfolio_diario.iloc[idx_actual - 1]
+        var_euros = last_day["profit"] - prev_day["profit"]
+        var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
+else:
+    # Resguardo si no hay datos suficientes
+    last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0}
+
+
+
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
     datos_circular["Valor actual"].astype(str).str.replace(" €", "").str.replace(",", ""), 
