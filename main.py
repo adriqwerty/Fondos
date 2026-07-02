@@ -885,7 +885,9 @@ with tab_distribucion:
     with col_grande:
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
+# ==========================================================
 # TAB 5: DETALLE DE APORTACIONES
+# ==========================================================
 with tab_detalles:
 
     col_select, _ = st.columns([1.5, 2])
@@ -902,64 +904,134 @@ with tab_detalles:
         else df[df["fund"] == fondo_seleccionado].copy()
     )
 
-    # =====================================================
-    # GRÁFICO DE APORTACIONES
-    # =====================================================
+    # ==========================================================
+    # GRÁFICO
+    # ==========================================================
     if fondo_seleccionado != "Todos" and not df_detalles_filtrado.empty:
 
         ultimo_vl = df_detalles_filtrado["current_price"].iloc[0]
 
         graf = df_detalles_filtrado.sort_values("date").copy()
 
+        # Histórico del VL
+        hist = (
+            hist_df[hist_df["fund"] == fondo_seleccionado]
+            .sort_values("date")
+            .copy()
+        )
+
         graf["Color"] = graf["price"].apply(
             lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
         )
 
+        # Tamaño de las burbujas
+        tam_min = 10
+        tam_max = 35
+
+        importe_min = graf["amount"].min()
+        importe_max = graf["amount"].max()
+
+        if importe_min == importe_max:
+            graf["size"] = 18
+        else:
+            graf["size"] = tam_min + (
+                (graf["amount"] - importe_min)
+                / (importe_max - importe_min)
+            ) * (tam_max - tam_min)
+
         fig = go.Figure()
+
+        # Evolución del fondo
+        fig.add_trace(
+            go.Scatter(
+                x=hist["date"],
+                y=hist["vl"],
+                mode="lines",
+                name="VL",
+                line=dict(
+                    color="#3b82f6",
+                    width=3
+                )
+            )
+        )
 
         # Línea del VL actual
         fig.add_hline(
             y=ultimo_vl,
             line_dash="dash",
-            line_color="#3b82f6",
+            line_color="#60a5fa",
             annotation_text=f"VL actual: {ultimo_vl:.2f} €",
             annotation_position="top right"
         )
 
         # Compras
-        fig.add_trace(go.Scatter(
-            x=graf["date"],
-            y=graf["price"],
-            mode="markers",
-            marker=dict(
-                color=graf["Color"],
-                size=12,
-                line=dict(color="white", width=1)
-            ),
-            customdata=graf[["amount","units"]],
-            hovertemplate=
-                "<b>%{x|%d/%m/%Y}</b><br>" +
-                "Precio compra: %{y:.4f} €<br>" +
-                "Importe: %{customdata[0]:.2f} €<br>" +
-                "Participaciones: %{customdata[1]:.4f}<extra></extra>",
-            showlegend=False
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=graf["date"],
+                y=graf["price"],
+                mode="markers",
+                name="Aportaciones",
+                marker=dict(
+                    color=graf["Color"],
+                    size=graf["size"],
+                    sizemode="diameter",
+                    line=dict(
+                        color="white",
+                        width=1.5
+                    ),
+                    opacity=0.90
+                ),
+                customdata=graf[
+                    [
+                        "amount",
+                        "units",
+                        "beneficio",
+                        "rentabilidad"
+                    ]
+                ],
+                hovertemplate=
+                    "<b>%{x|%d/%m/%Y}</b><br>" +
+                    "Precio compra: %{y:.4f} €<br>" +
+                    "Importe: %{customdata[0]:.2f} €<br>" +
+                    "Participaciones: %{customdata[1]:.4f}<br>" +
+                    "Ganancia: %{customdata[2]:.2f} €<br>" +
+                    "Rentabilidad: %{customdata[3]:.2f}%<extra></extra>"
+            )
+        )
 
         fig.update_layout(
-            title=f"Aportaciones - {fondo_seleccionado}",
+            title=f"Evolución del VL y Aportaciones - {fondo_seleccionado}",
             template="plotly_dark",
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            height=500,
+            height=600,
+            hovermode="closest",
             xaxis_title="Fecha",
-            yaxis_title="Precio compra (€)"
+            yaxis_title="Valor Liquidativo (€)",
+            legend=dict(
+                orientation="h",
+                y=1.02,
+                x=0
+            )
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_xaxes(
+            showgrid=False
+        )
 
-    # =====================================================
+        fig.update_yaxes(
+            gridcolor="rgba(51,65,85,0.35)"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
+
+    # ==========================================================
     # TABLA
-    # =====================================================
+    # ==========================================================
     if not df_detalles_filtrado.empty:
 
         df_detalles_filtrado = df_detalles_filtrado.sort_values(
