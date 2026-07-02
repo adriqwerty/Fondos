@@ -892,7 +892,6 @@ with tab_detalles:
     # 1. Selectores para filtrar
     col_select1, col_select2 = st.columns([1.5, 2])
     with col_select1:
-        # Para el gráfico necesitamos obligatoriamente un fondo real, por lo que quitamos el "Todos" de la selección principal del gráfico
         lista_fondos_reales = sorted(df["fund"].dropna().unique().tolist())
         fondo_seleccionado = st.selectbox("Selecciona un fondo para analizar:", lista_fondos_reales, key="sb_detalles_fondo")
     
@@ -933,17 +932,21 @@ with tab_detalles:
         ))
         
         # Añadir Línea de Referencia Horizontal: VL Actual
-        if vl_actual_fondo:
-            fig_aportaciones.add_hline(
-                y=vl_actual_fondo, 
-                line_dash="dash", 
-                line_color="#f43f5e", # Rojo/Rosa premium para que contraste bien
-                line_width=2,
-                yref="y2", # Vinculado al eje del VL (derecho)
-                annotation_text=f"VL Actual: {vl_actual_fondo:,.4f} €",
-                annotation_position="top right",
-                annotation_font=dict(size=12, color="#f43f5e", weight="bold")
-            )
+        if vl_actual_fondo is not None:
+            try:
+                vl_float = float(vl_actual_fondo)
+                fig_aportaciones.add_hline(
+                    y=vl_float, 
+                    line_dash="dash", 
+                    line_color="#f43f5e", # Rojo/Rosa premium para que contraste bien
+                    line_width=2,
+                    yref="y2", # Vinculado al eje del VL (derecho)
+                    annotation_text=f"<b>VL Actual: {vl_float:,.4f} €</b>", # Negrita mediante HTML corregido
+                    annotation_position="top right",
+                    annotation_font=dict(size=12, color="#f43f5e") # Eliminado 'weight="bold"' para corregir el ValueError
+                )
+            except Exception:
+                pass
             
         # Configurar el diseño de doble eje Y para que convivan importes (€) y precios de participación
         fig_aportaciones.update_layout(
@@ -995,9 +998,4 @@ with tab_detalles:
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
         df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
         df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
-        df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
-        df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
-        
-        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
-    else:
-        st.info("No se encontraron aportaciones para el fondo seleccionado.")
+        df_detalles_html["Ganancia"] = df_detalles_filtrado
