@@ -913,38 +913,50 @@ with tab_detalles:
 
         graf = df_detalles_filtrado.sort_values("date").copy()
 
+        # Histórico del VL
         hist = (
-        hist_df[hist_df["fund"] == fondo_seleccionado]
-        .sort_values("date")
-        .copy()
+            hist_df[hist_df["fund"] == fondo_seleccionado]
+            .sort_values("date")
+            .copy()
+        )
+        hist = (
+            hist_df[hist_df["fund"] == fondo_seleccionado]
+            .sort_values("date")
+            .copy()
         )
 
-        # ======================================================
-        # Completar histórico inicial con las aportaciones
-        # ======================================================
+        if hist.empty:
 
-        if not hist.empty:
+            # No existe histórico
+            hist = graf[["date", "price"]].rename(columns={"price": "vl"})
 
-            primera_fecha_vl = hist["date"].min()
+        else:
 
-            compras_antiguas = (
-                graf[graf["date"] < primera_fecha_vl][["date", "price"]]
+            primera_fecha = hist["date"].min()
+
+            # Todas las compras anteriores al histórico
+            compras = (
+                graf[graf["date"] <= primera_fecha][["date", "price"]]
                 .rename(columns={"price": "vl"})
             )
 
-            hist = pd.concat(
-                [compras_antiguas, hist[["date", "vl"]]],
-                ignore_index=True
-            )
+    hist = pd.concat(
+        [
+            compras,
+            hist[["date", "vl"]]
+        ],
+        ignore_index=True
+    )
 
-            hist = (
-                hist.sort_values("date")
-                    .drop_duplicates(subset="date", keep="last")
-            )
+    hist = (
+        hist.sort_values("date")
+            .groupby("date", as_index=False)
+            .last()
+    )
 
-        else:
-            # Si no existe ningún histórico aún
-            hist = graf[["date", "price"]].rename(columns={"price": "vl"})
+    # Si hay varios días sin VL al principio,
+    # prolongamos el último precio conocido
+    hist["vl"] = hist["vl"].ffill()
 
         graf["Color"] = graf["price"].apply(
             lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
