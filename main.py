@@ -572,9 +572,10 @@ if not portfolio.empty:
     st.write(portfolio_mes)
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
-        valor_final_mes = portfolio_mes["value"].iloc[-1]
+        valor_final_mes = portfolio["profit"].iloc[-1]
         valor_inicial_mes = portfolio_mes["profit"].iloc[0]
         st.write(valor_inicial_mes)
+        st.write(valor_final_mes)
         
         if len(portfolio_mes) == 1:
             mes_anterior = portfolio[portfolio["date_dt"] < portfolio_mes["date_dt"].iloc[0]]
