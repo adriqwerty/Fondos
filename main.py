@@ -559,21 +559,36 @@ var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
 valores_mes = []
 
-if not portfolio.empty:
-    portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
-    ultima_fecha_datos = portfolio["date_dt"].max()
-    año_actual = ultima_fecha_datos.year
-    mes_actual = ultima_fecha_datos.month
-    
-    portfolio_mes = portfolio[
-        (portfolio["date_dt"].dt.year == año_actual) & 
-        (portfolio["date_dt"].dt.month == mes_actual)
+portfolio_mes = portfolio[
+    (portfolio["date_dt"].dt.year == año_actual) &
+    (portfolio["date_dt"].dt.month == mes_actual)
+].sort_values("date_dt")
+
+if not portfolio_mes.empty:
+
+    valores_mes = portfolio_mes["value"].tolist()
+
+    # Último registro antes del mes actual
+    portfolio_mes_anterior = portfolio[
+        portfolio["date_dt"] < portfolio_mes["date_dt"].min()
     ].sort_values("date_dt")
 
-    if not portfolio_mes.empty:
-        valores_mes = portfolio_mes["value"].tolist()
-        valor_final_mes = portfolio["profit"].iloc[-1]
+    valor_final_mes = portfolio["profit"].iloc[-1]
+
+    if not portfolio_mes_anterior.empty:
+        valor_inicial_mes = portfolio_mes_anterior["profit"].iloc[-1]
+    else:
+        # Si no hay datos anteriores (primer mes de la cartera)
         valor_inicial_mes = portfolio_mes["profit"].iloc[0]
+
+    var_mensual_euros = valor_final_mes - valor_inicial_mes
+
+    valor_base = portfolio_mes_anterior["value"].iloc[-1] if not portfolio_mes_anterior.empty else portfolio_mes["value"].iloc[0]
+
+    var_mensual_porcentaje = (
+        var_mensual_euros / valor_base * 100
+        if valor_base != 0 else 0
+    )
         
         
 var_mensual_euros = valor_final_mes - valor_inicial_mes
