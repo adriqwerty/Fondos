@@ -4,6 +4,7 @@ from google.oauth2.service_account import Credentials
 import streamlit as st
 import plotly.graph_objects as go
 import datetime
+import numpy as np
 
 # ==========================================================
 # 🌌 INTERFAZ COMPLETA EN MODO OSCURO (CSS PREMIUM)
