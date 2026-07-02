@@ -547,11 +547,10 @@ final = final.rename(columns={
 
 portfolio = dense.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date").reset_index(drop=True)
 portfolio = portfolio.dropna(subset=["value"])
-st.write(portfolio)
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
-portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
-portfolio["1d (€)"] = portfolio["value"].diff(1)
+portfolio["1d (%)"] = portfolio["profit"].pct_change(1) * 100
+portfolio["1d (€)"] = portfolio["profit"].diff(1)
 
 last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real disponible
 
