@@ -998,4 +998,9 @@ with tab_detalles:
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
         df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
         df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
-        df_detalles_html["Ganancia"] = df_detalles_filtrado
+        df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
+        df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
+        
+        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
+    else:
+        st.info("No se encontraron aportaciones para el fondo seleccionado.")
