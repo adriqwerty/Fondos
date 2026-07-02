@@ -887,16 +887,89 @@ with tab_distribucion:
 
 # TAB 5: DETALLE DE APORTACIONES
 with tab_detalles:
+
     col_select, _ = st.columns([1.5, 2])
+
     with col_select:
-        fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
-    
-    df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
-    
+        fondo_seleccionado = st.selectbox(
+            "Filtrar por fondo específico:",
+            ["Todos"] + sorted(df["fund"].dropna().unique().tolist())
+        )
+
+    df_detalles_filtrado = (
+        df.copy()
+        if fondo_seleccionado == "Todos"
+        else df[df["fund"] == fondo_seleccionado].copy()
+    )
+
+    # =====================================================
+    # GRÁFICO DE APORTACIONES
+    # =====================================================
+    if fondo_seleccionado != "Todos" and not df_detalles_filtrado.empty:
+
+        ultimo_vl = df_detalles_filtrado["current_price"].iloc[0]
+
+        graf = df_detalles_filtrado.sort_values("date").copy()
+
+        graf["Color"] = graf["price"].apply(
+            lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
+        )
+
+        fig = go.Figure()
+
+        # Línea del VL actual
+        fig.add_hline(
+            y=ultimo_vl,
+            line_dash="dash",
+            line_color="#3b82f6",
+            annotation_text=f"VL actual: {ultimo_vl:.2f} €",
+            annotation_position="top right"
+        )
+
+        # Compras
+        fig.add_trace(go.Scatter(
+            x=graf["date"],
+            y=graf["price"],
+            mode="markers",
+            marker=dict(
+                color=graf["Color"],
+                size=12,
+                line=dict(color="white", width=1)
+            ),
+            customdata=graf[["amount","units"]],
+            hovertemplate=
+                "<b>%{x|%d/%m/%Y}</b><br>" +
+                "Precio compra: %{y:.4f} €<br>" +
+                "Importe: %{customdata[0]:.2f} €<br>" +
+                "Participaciones: %{customdata[1]:.4f}<extra></extra>",
+            showlegend=False
+        ))
+
+        fig.update_layout(
+            title=f"Aportaciones - {fondo_seleccionado}",
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=500,
+            xaxis_title="Fecha",
+            yaxis_title="Precio compra (€)"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    # =====================================================
+    # TABLA
+    # =====================================================
     if not df_detalles_filtrado.empty:
-        df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
+
+        df_detalles_filtrado = df_detalles_filtrado.sort_values(
+            "date",
+            ascending=False
+        )
+
         df_detalles_html = pd.DataFrame()
-        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+
+        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].dt.strftime("%d/%m/%Y")
         df_detalles_html["Fondo"] = df_detalles_filtrado["fund"]
         df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
@@ -904,83 +977,11 @@ with tab_detalles:
         df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
         df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
         df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
-        
-        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
+
+        render_financial_table(
+            df_detalles_html,
+            cols_color_render=["Ganancia", "Rentabilidad"]
+        )
+
     else:
         st.info("No se encontraron aportaciones para el criterio seleccionado.")
-
-    if fondo_seleccionado != "Todos":
-
-    ultimo_vl = df_detalles_filtrado["current_price"].iloc[0]
-
-    graf = df_detalles_filtrado.sort_values("date").copy()
-
-    graf["Color"] = graf["price"].apply(
-        lambda x: "green" if x <= ultimo_vl else "red"
-    )
-
-    fig = go.Figure()
-
-    # Línea del último VL
-    fig.add_hline(
-        y=ultimo_vl,
-        line_dash="dash",
-        line_color="#3b82f6",
-        annotation_text=f"VL actual: {ultimo_vl:.2f} €",
-        annotation_position="top right"
-    )
-
-    # Compras en verde
-    verde = graf[graf["Color"] == "green"]
-
-    fig.add_trace(go.Scatter(
-        x=verde["date"],
-        y=verde["price"],
-        mode="markers",
-        marker=dict(
-            color="#10b981",
-            size=12,
-            line=dict(width=1,color="white")
-        ),
-        name="Ganando",
-        customdata=verde[["amount","units"]],
-        hovertemplate=
-        "<b>%{x|%d/%m/%Y}</b><br>" +
-        "Compra: %{y:.2f} €<br>" +
-        "Importe: %{customdata[0]:.2f} €<br>" +
-        "Participaciones: %{customdata[1]:.3f}<extra></extra>"
-    ))
-
-    # Compras en rojo
-    rojo = graf[graf["Color"] == "red"]
-
-    fig.add_trace(go.Scatter(
-        x=rojo["date"],
-        y=rojo["price"],
-        mode="markers",
-        marker=dict(
-            color="#ef4444",
-            size=12,
-            line=dict(width=1,color="white")
-        ),
-        name="Perdiendo",
-        customdata=rojo[["amount","units"]],
-        hovertemplate=
-        "<b>%{x|%d/%m/%Y}</b><br>" +
-        "Compra: %{y:.2f} €<br>" +
-        "Importe: %{customdata[0]:.2f} €<br>" +
-        "Participaciones: %{customdata[1]:.3f}<extra></extra>"
-    ))
-
-    fig.update_layout(
-        template="plotly_dark",
-        title=f"Aportaciones - {fondo_seleccionado}",
-        height=500,
-        hovermode="closest",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis_title="Fecha",
-        yaxis_title="Precio compra (€)"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
