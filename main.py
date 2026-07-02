@@ -576,8 +576,8 @@ if not portfolio.empty:
         valor_inicial_mes = portfolio_mes["profit"].iloc[0]
         
         
-        var_mensual_euros = valor_final_mes - valor_inicial_mes
-        var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
+var_mensual_euros = valor_final_mes - valor_inicial_mes
+var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
 
 # ==========================================
 # VISTA GENERAL Y PANELES
