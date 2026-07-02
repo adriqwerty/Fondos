@@ -735,55 +735,42 @@ with tab_graficos:
 # ==========================================================
 # 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (ESTILO MATRIZ MYINVESTOR)
 # ==========================================================
+# ==========================================================
+# 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (MATRIZ COMPACTA % Y €)
+# ==========================================================
 with tab_evolucion:
     if not portfolio.empty:
-        # Añadimos columnas de control temporal
+        # 1. Preparar columnas de control temporal
         portfolio["year"] = portfolio["date_dt"].dt.year
         portfolio["month"] = portfolio["date_dt"].dt.month
         
-        # Selector de tipo de visualización (idéntico al botón de la captura)
-        tipo_vista = st.radio("Visualizar matriz:", ["En porcentaje (%)", "En euros (€)"], horizontal=True, label_visibility="collapsed")
-        
-        # Obtenemos los cierres de cada mes (último día registrado por año/mes)
+        # 2. Obtener los cierres de cada mes
         cierres_mensuales = portfolio.sort_values("date_dt").groupby(["year", "month"]).last().reset_index()
         
-        # Para calcular la rentabilidad aislada del mes sin verse afectada por las aportaciones,
-        # calculamos la base sobre la ganancia limpia (profit) de ese periodo
         cierres_mensuales["prev_value"] = cierres_mensuales["value"].shift(1)
         cierres_mensuales["diff_profit"] = cierres_mensuales["profit"].diff(1)
         
-        # Rendimiento mensual limpio
+        # 3. Calcular ambas métricas simultáneamente
         cierres_mensuales["rent_pct"] = (cierres_mensuales["diff_profit"] / cierres_mensuales["prev_value"]) * 100
         cierres_mensuales["rent_eur"] = cierres_mensuales["diff_profit"]
         
-        # Corregir el primer registro histórico de la serie
         if not cierres_mensuales.empty:
             primer_idx = cierres_mensuales.index[0]
             cierres_mensuales.loc[primer_idx, "rent_pct"] = (cierres_mensuales.loc[primer_idx, "profit"] / cierres_mensuales.loc[primer_idx, "invested"]) * 100 if cierres_mensuales.loc[primer_idx, "invested"] else 0
             cierres_mensuales.loc[primer_idx, "rent_eur"] = cierres_mensuales.loc[primer_idx, "profit"]
 
-        # Mapeo de nombres de meses en español
         meses_es = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"}
         cierres_mensuales["Mes"] = cierres_mensuales["month"].map(meses_es)
         
-        # Pivoteamos los datos para crear la cuadrícula (Años en las columnas, Meses en las filas)
-        col_valor = "rent_pct" if "porcentaje" in tipo_vista.lower() else "rent_eur"
-        matriz_pivot = cierres_mensuales.pivot(index="month", columns="year", values=col_valor)
-        
-        # Reindexar para asegurar el orden cronológico de los meses
-        matriz_pivot = matriz_pivot.reindex(range(1, 13))
-        matriz_pivot.index = [meses_es[m] for m in matriz_pivot.index]
-        matriz_pivot = matriz_pivot.reset_index().rename(columns={"index": ""})
-        
-        # Calcular fila del TOTAL Anual (Agregando los beneficios netos totales acumulados de cada año)
-        totales_año = {}
+        # 4. Calcular Totales Anuales
+        totales_pct = {}
+        totales_eur = {}
         for y in cierres_mensuales["year"].unique():
             datos_y = portfolio[portfolio["year"] == y].sort_values("date_dt")
             if not datos_y.empty:
                 val_final = datos_y["value"].iloc[-1]
                 prof_final = datos_y["profit"].iloc[-1]
                 
-                # Buscar base inicial (cierre del año anterior)
                 datos_ant = portfolio[portfolio["year"] < y].sort_values("date_dt")
                 if not datos_ant.empty:
                     val_inicial = datos_ant["value"].iloc[-1]
@@ -793,34 +780,69 @@ with tab_evolucion:
                     prof_inicial = 0
                 
                 ganancia_neta_año = prof_final - prof_inicial
-                if "porcentaje" in tipo_vista.lower():
-                    totales_año[y] = (ganancia_neta_año / val_inicial) * 100 if val_inicial else 0
-                else:
-                    totales_año[y] = ganancia_neta_año
-                    
-        fila_total = {"": "Total"}
-        for y in matriz_pivot.columns:
-            if y != "":
-                fila_total[y] = totales_año.get(y, None)
+                totales_pct[y] = (ganancia_neta_año / val_inicial) * 100 if val_inicial else 0
+                totales_eur[y] = ganancia_neta_año
+
+        # 5. Pivotar datos
+        pivot_pct = cierres_mensuales.pivot(index="month", columns="year", values="rent_pct").reindex(range(1, 13))
+        pivot_eur = cierres_mensuales.pivot(index="month", columns="year", values="rent_eur").reindex(range(1, 13))
+        
+        years_columns = sorted(list(cierres_mensuales["year"].unique()), reverse=True)
+        
+        # 6. HTML con CSS personalizado inline para controlar el ancho (max-width y margin: auto)
+        html_matriz = """
+        <div class="financial-table-container" style="max-width: 600px; margin: 0 auto 25px auto; border-radius: 16px;">
+            <table class="financial-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 24px; width: 35%;"></th>
+        """
+        for y in years_columns:
+            html_matriz += f'<th style="width: calc(65% / {len(years_columns)});">{y}</th>'
+        html_matriz += '</tr></thead><tbody>'
+        
+        # --- FILA DE TOTALES ---
+        html_matriz += '<tr style="background-color: #0f172a; border-bottom: 2px solid #334155; font-size: 15px;">'
+        html_matriz += '<td style="font-weight: 700; text-align: left; padding-left: 24px; color: #ffffff;">Total</td>'
+        for y in years_columns:
+            p_val = totales_pct.get(y, None)
+            e_val = totales_eur.get(y, None)
+            
+            if p_val is not None and e_val is not None:
+                clase = ' class="pos-val"' if p_val > 0 else (' class="neg-val"' if p_val < 0 else '')
+                signo = '+' if p_val > 0 else ''
+                html_matriz += f'<td style="padding: 12px 16px;">' \
+                               f'<div{clase} style="font-size: 15px;">{signo}{p_val:.2f} %</div>' \
+                               f'<div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-weight: 400;">{signo}{e_val:,.2f} €</div>' \
+                               f'</td>'
+            else:
+                html_matriz += '<td>-</td>'
+        html_matriz += '</tr>'
+        
+        # --- FILAS DE LOS MESES ---
+        for m_num in range(1, 13):
+            nombre_mes = meses_es[m_num]
+            html_matriz += '<tr>'
+            html_matriz += f'<td style="text-align: left; padding-left: 24px; color: #cbd5e1; font-weight: 600;">{nombre_mes}</td>'
+            
+            for y in years_columns:
+                p_val = pivot_pct.loc[m_num, y] if y in pivot_pct.columns else None
+                e_val = pivot_eur.loc[m_num, y] if y in pivot_eur.columns else None
                 
-        # Estructurar DataFrame final concatenando la fila del Total arriba (igual que en MyInvestor)
-        df_fila_total = pd.DataFrame([fila_total])
-        matriz_final = pd.concat([df_fila_total, matriz_pivot], ignore_index=True)
-        
-        # Ordenar columnas de años de manera descendente (el año más reciente primero)
-        columnas_años = sorted([c for c in matriz_final.columns if c != ""], reverse=True)
-        matriz_final = matriz_final[[""] + columnas_años]
-        
-        # Formatear celdas para el renderizado HTML dinámico
-        matriz_render = matriz_final.copy()
-        for col in matriz_render.columns:
-            if col != "":
-                if "porcentaje" in tipo_vista.lower():
-                    matriz_render[col] = matriz_render[col].apply(lambda x: f"{x:+.2f} %" if pd.notnull(x) else "-")
+                if pd.notnull(p_val) and pd.notnull(e_val):
+                    clase = ' class="pos-val"' if p_val > 0 else (' class="neg-val"' if p_val < 0 else '')
+                    signo = '+' if p_val > 0 else ''
+                    html_matriz += f'<td style="padding: 10px 16px;">' \
+                                   f'<div{clase}>{signo}{p_val:.2f} %</div>' \
+                                   f'<div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-weight: 400;">{signo}{e_val:,.2f} €</div>' \
+                                   f'</td>'
                 else:
-                    matriz_render[col] = matriz_render[col].apply(lambda x: f"{x:+,.2f} €" if pd.notnull(x) else "-")
-                    
-        render_financial_table(matriz_render, cols_color_render=columnas_años)
+                    html_matriz += '<td style="color: #475569;">-</td>'
+            html_matriz += '</tr>'
+            
+        html_matriz += '</tbody></table></div>'
+        
+        st.write(html_matriz, unsafe_allow_html=True)
     else:
         st.info("No hay datos suficientes para generar la matriz de rendimiento.")
 
