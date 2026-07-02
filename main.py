@@ -5,6 +5,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import datetime
 
+
 # ==========================================================
 # 🌌 INTERFAZ COMPLETA EN MODO OSCURO (CSS PREMIUM)
 # ==========================================================
@@ -157,6 +158,7 @@ def generate_sparkline_svg(values):
     min_v, max_v = min(values), max(values)
     rng = max_v - min_v if max_v != min_v else 1
     
+    # Referencia: primer valor del histórico guardado
     referencia = values[0]
     pct_referencia = 100 - (((referencia - min_v) / rng) * 100)
     pct_referencia = max(5, min(95, pct_referencia))
@@ -172,6 +174,8 @@ def generate_sparkline_svg(values):
     
     polyline_str = " ".join(points)
     color_final = "#10b981" if values[-1] >= values[0] else "#f43f5e"
+    
+    # Usamos un ID único usando hashes de los puntos para evitar conflictos entre las filas de la tabla
     gradient_id = f"grad_{abs(hash(polyline_str))}"
     
     svg = f"""
@@ -206,6 +210,8 @@ def render_financial_table(df_styled, cols_color_render=None):
         html_table += '<tr>'
         for col in df_clean.columns:
             val = row[col]
+            
+            # 🎯 Si el valor es una lista, renderizamos el Sparkline SVG
             if isinstance(val, list):
                 sparkline_content = generate_sparkline_svg(val)
                 html_table += f'<td>{sparkline_content}</td>'
@@ -383,7 +389,7 @@ with st.sidebar:
 cfg = SHEETS_MAP[usuario]
 
 # ==========================================
-# LECTURA DE DATOS SEGUROS
+# LECTURA DE DATOS SEGUROS (CONVERSIÓN DE COMAS)
 # ==========================================
 @st.cache_data(ttl=300)
 def load_aportaciones(sheet_name):
@@ -439,6 +445,7 @@ hist_df = hist_df.dropna(subset=["fund"])
 df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(",", "."), errors="coerce")
 df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", "."), errors="coerce")
 df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
+df["date"] = df["date"].dt.date
 
 df["current_price"] = df["isin"].astype(str).str.strip().map(price_map)
 df["valor_actual"] = (df["amount"] / df["price"]) * df["current_price"]
@@ -453,6 +460,7 @@ resumen = (
 )
 resumen["rentabilidad"] = resumen["beneficio"] / resumen["invertido"] * 100
 
+# 🎯 AGREGADO AQUÍ: Mapeamos el último valor de VL al DataFrame de resumen
 resumen["isin_temp"] = resumen["fund"].map({v: k for k, v in isin_to_fund.items()})
 resumen["Precio VL"] = resumen["isin_temp"].map(price_map)
 resumen = resumen.drop(columns=["isin_temp"])
@@ -495,11 +503,8 @@ evolution = grid.merge(daily_cash, on=["date", "fund"], how="left")
 evolution = evolution.merge(daily_units, on=["date", "fund"], how="left")
 hist_df["fund"] = hist_df["isin"].map(isin_to_fund)
 
+# 🛡️ FILTRO ANTIDUPLICADOS: Limpieza del histórico de VL antes del cruce temporal
 hist_df_lookup = hist_df[["date", "fund", "vl"]].drop_duplicates(subset=["date", "fund"])
-
-grid["date"] = pd.to_datetime(grid["date"])
-evolution["date"] = pd.to_datetime(evolution["date"])
-hist_df_lookup["date"] = pd.to_datetime(hist_df_lookup["date"])
 
 evolution = evolution.merge(hist_df_lookup, on=["date", "fund"], how="left")
 evolution = evolution.sort_values(["fund", "date"])
@@ -516,6 +521,7 @@ final = resumen.merge(metrics_fund, on="fund", how="left").merge(last_dates, on=
 final["order"] = final["fund"].map(orden_dict)
 final = final.sort_values("order", na_position="last").drop(columns=["order"])
 
+# 🎯 EXTRACCIÓN DE LA TENDENCIA SINCRONIZADA
 sparklines_dict = {}
 for f in funds:
     f_hist = hist_df_lookup[hist_df_lookup["fund"] == f].sort_values("date").reset_index(drop=True)
@@ -539,22 +545,14 @@ final = final.rename(columns={
     "last_date": "Última actualización"
 })
 
-dense["date"] = pd.to_datetime(dense["date"])
 portfolio = dense.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date").reset_index(drop=True)
 portfolio = portfolio.dropna(subset=["value"])
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
+portfolio["1d (%)"] = portfolio["value"].pct_change(1) * 100
+portfolio["1d (€)"] = portfolio["value"].diff(1)
 
-# ==========================================================
-# 🎯 CORRECCIÓN CLAVE: VARIACIÓN DIARIA BASADA EN GANANCIA REAL
-# ==========================================================
-# Restamos la ganancia de hoy menos la ganancia de ayer para aislar las aportaciones de capital
-portfolio["1d (€)"] = portfolio["profit"].diff(1)
-# Rentabilidad diaria relativa al valor del día anterior
-portfolio["1d (%)"] = (portfolio["1d (€)"] / portfolio["value"].shift(1)) * 100
-
-# Apuntamos dinámicamente al último día real disponible (-1)
-last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0, "1d (%)": 0, "1d (€)": 0, "date": pd.Timestamp.today()}
+last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real disponible
 
 datos_circular = final.copy()
 datos_circular["Valor actual"] = pd.to_numeric(
@@ -563,18 +561,22 @@ datos_circular["Valor actual"] = pd.to_numeric(
 )
 
 # ==========================================================
-# CÁLCULO DE VARIACIÓN MENSUAL (MTD)
+# CÁLCULO DE VARIACIÓN MENSUAL (DESDE EL DÍA 1 DEL MES EN CURSO)
 # ==========================================================
 var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
 valores_mes = []
 
 if not portfolio.empty:
+    # 1. Asegurar que tratamos fechas nativas de datetime
     portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
-    ultima_fecha_datos = portfolio["date_dt"].max()
-    año_actual = ultima_fecha_datos.year
-    mes_actual = ultima_fecha_datos.month
     
+    # 2. Usar la última fecha real del portfolio o el día de hoy
+    ultima_fecha = portfolio["date_dt"].max()
+    año_actual = ultima_fecha.year
+    mes_actual = ultima_fecha.month
+    
+    # 3. Filtrar el portfolio para el mes actual (MTD)
     portfolio_mes = portfolio[
         (portfolio["date_dt"].dt.year == año_actual) & 
         (portfolio["date_dt"].dt.month == mes_actual)
@@ -582,14 +584,19 @@ if not portfolio.empty:
     
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
+        
+        # El dinero actual del final del mes (o último día registrado de este mes)
         valor_final_mes = portfolio_mes["value"].iloc[-1]
+        # El dinero con el que empezó el mes (Día 1 o primer registro del mes)
         valor_inicial_mes = portfolio_mes["value"].iloc[0]
         
+        # Si solo hay 1 día en el mes, intentamos comparar contra el último día del mes anterior
         if len(portfolio_mes) == 1:
             mes_anterior = portfolio[portfolio["date_dt"] < portfolio_mes["date_dt"].iloc[0]]
             if not mes_anterior.empty:
                 valor_inicial_mes = mes_anterior["value"].iloc[-1]
         
+        # 4. Cálculo matemático del dinero acumulado del mes
         var_mensual_euros = valor_final_mes - valor_inicial_mes
         var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
 
@@ -627,9 +634,21 @@ with kpi4:
     color_var_mes = "#10b981" if var_mensual_porcentaje >= 0 else "#f43f5e"
     signo_mes = "+" if var_mensual_porcentaje >= 0 else ""
     
+    # 🎯 FILTRO MTD: Filtrar el portfolio para quedarnos SOLO con los días del mes actual
+    hoy = datetime.date.today()
+    # Si estás en el año de tu base de datos, extraemos año y mes actual:
+    # (Suponiendo que el índice o columna 'date' es de tipo datetime)
+    portfolio_mes = portfolio[
+        (portfolio["date"].dt.year == hoy.year) & 
+        (portfolio["date"].dt.month == hoy.month)
+    ].sort_values("date")
+    
+    valores_mes = portfolio_mes["value"].tolist() if not portfolio_mes.empty else []
+    
     sparkline_mes_html = ""
+    # Necesitamos al menos 2 días del mes actual para dibujar una línea
     if len(valores_mes) >= 2:
-        referencia = valores_mes[0]
+        referencia = valores_mes[0] # El primer día del mes actual
         min_v, max_v = min(valores_mes), max(valores_mes)
         rng = max_v - min_v if max_v != min_v else 1
         
@@ -665,6 +684,7 @@ with kpi4:
         """.replace("\n", "").strip()
     
     elif len(valores_mes) == 1:
+        # Si es el día 1 del mes y solo hay un dato, pintamos un punto neutral temporal
         sparkline_mes_html = f"""
         <div class="sparkline-container" style="width: 100%; display: flex; align-items: center; justify-content: center;">
             <svg width="100%" height="35">
@@ -673,6 +693,7 @@ with kpi4:
         </div>
         """
 
+    # Contenedor final del KPI 4
     kpi4_html = (
         f'<div style="background-color: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; height: 104px; display: flex; flex-direction: column; justify-content: center;">'
         f'<p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">⚡ Variación Mes</p>'
@@ -687,6 +708,9 @@ with kpi4:
     )
     st.markdown(kpi4_html, unsafe_allow_html=True)
 
+
+# Separador estético
+st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
@@ -720,47 +744,66 @@ with tab_resumen:
 with tab_graficos:
     start_date = pd.Timestamp("2026-05-18")
     dense_filtered = dense[dense["date"] >= start_date]
+    portfolio_graph = dense_filtered.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date")
+    portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
+
+    val_min = min(portfolio_graph["value"].min(), portfolio_graph["invested"].min())
+    suelo_grafico = val_min * 0.98 
+
+    col_g1, col_g2 = st.columns(2)
     
-    if not dense_filtered.empty:
-        portfolio_graph = dense_filtered.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date")
-        portfolio_graph["profit"] = (portfolio_graph["value"] - portfolio_graph["invested"])
+    with col_g1:
+        fig1 = go.Figure()
+        fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["invested"], name="Invertido", mode="lines", line=dict(color="rgba(148, 163, 184, 0.5)", width=1.5, dash="dot")))
+        fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["value"], name="Valor Cartera", mode="lines", line=dict(color="#3b82f6", width=3), fill='tonexty', fillcolor='rgba(59, 130, 246, 0.05)'))
+        fig1.update_layout(title=dict(text="<b>Evolución del Valor Total</b>", font=dict(size=14, color="#cbd5e1")), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=15, r=15, t=50, b=15), height=450, hovermode="x unified", xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="rgba(51, 65, 85, 0.4)", range=[suelo_grafico, portfolio_graph["value"].max() * 1.02]))
+        st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
 
-        val_min = min(portfolio_graph["value"].min(), portfolio_graph["invested"].min()) if not portfolio_graph.empty else 0
-        suelo_grafico = val_min * 0.98 
-
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            fig1 = go.Figure()
-            fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["invested"], name="Invertido", mode="lines", line=dict(color="rgba(148, 163, 184, 0.5)", width=1.5, dash="dot")))
-            fig1.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["value"], name="Valor Cartera", mode="lines", line=dict(color="#3b82f6", width=3), fill='tonexty', fillcolor='rgba(59, 130, 246, 0.05)'))
-            fig1.update_layout(title=dict(text="<b>Evolución del Valor Total</b>", font=dict(size=14, color="#cbd5e1")), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=15, r=15, t=50, b=15), height=450, hovermode="x unified", xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="rgba(51, 65, 85, 0.4)", range=[suelo_grafico, portfolio_graph["value"].max() * 1.02]))
-            st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
-
-        with col_g2:
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["profit"], name="Beneficio Neto", mode="lines", line=dict(color="#10b981", width=3), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.05)'))
-            fig2.update_layout(title=dict(text="<b>Evolución de la Ganancia Neta</b>", font=dict(size=14, color="#cbd5e1")), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=50, b=10), height=450, hovermode="x unified", xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="rgba(51, 65, 85, 0.5)", autorange=True, rangemode='normal'))
-            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
-    else:
-        st.info("No hay datos históricos disponibles a partir del 18/05/2026.")
+    with col_g2:
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(x=portfolio_graph["date"], y=portfolio_graph["profit"], name="Beneficio Neto", mode="lines", line=dict(color="#10b981", width=3), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.05)'))
+        fig2.update_layout(title=dict(text="<b>Evolución de la Ganancia Neta</b>", font=dict(size=14, color="#cbd5e1")), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=50, b=10), height=450, hovermode="x unified", xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="rgba(51, 65, 85, 0.5)", autorange=True, rangemode='normal'))
+        st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
 # TAB 3: HISTORIAL DE EVOLUCIÓN
 with tab_evolucion:
-    if 'portfolio_graph' in locals() and not portfolio_graph.empty:
-        df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
-        df_evo_html = df_view_evo.copy()
-        df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-        df_evo_html["Invertido"] = df_evo_html["Invertido"].map("{:,.2f} €".format)
-        df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
-        df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
-        render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
-    else:
-        st.info("No hay datos disponibles para mostrar el historial.")
+    df_view_evo = portfolio_graph.sort_values("date", ascending=False).rename(columns={"date": "Fecha", "invested": "Invertido", "value": "Precio", "profit":"Ganancia"})
+    df_evo_html = df_view_evo.copy()
+    df_evo_html["Fecha"] = df_evo_html["Fecha"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+    df_evo_html["Invertido"] = df_evo_html["Invertido"].map("{:,.2f} €".format)
+    df_evo_html["Precio"] = df_evo_html["Precio"].map("{:,.2f} €".format)
+    df_evo_html["Ganancia"] = df_evo_html["Ganancia"].map("{:,.2f} €".format)
+    render_financial_table(df_evo_html, cols_color_render=["Ganancia"])
 
-# TAB 4: DISTRIBUCIÓN
+
+# TAB 5: DETALLE DE APORTACIONES
+with tab_detalles:
+    col_select, _ = st.columns([1.5, 2])
+    with col_select:
+        fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
+    
+    df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
+    
+    if not df_detalles_filtrado.empty:
+        df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
+        df_detalles_html = pd.DataFrame()
+        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+        df_detalles_html["Fondo"] = df_detalles_filtrado["fund"]
+        df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
+        df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
+        df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
+        df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
+        df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
+        df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
+        
+        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
+    else:
+        st.info("No se encontraron aportaciones para el criterio seleccionado.")
+
+# TAB 5: DISTRIBUCIÓN
 with tab_distribucion:
     import plotly.express as px
+    
     colores_premium = ["#2563eb", "#059669", "#4f46e5", "#7c3aed", "#e11d48", "#0891b2", "#d97706"]
     
     fig_pie = px.pie(
@@ -796,27 +839,3 @@ with tab_distribucion:
     _, col_grande, _ = st.columns([0.3, 3.4, 0.3])
     with col_grande:
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
-
-# TAB 5: DETALLE DE APORTACIONES
-with tab_detalles:
-    col_select, _ = st.columns([1.5, 2])
-    with col_select:
-        fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
-    
-    df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
-    
-    if not df_detalles_filtrado.empty:
-        df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
-        df_detalles_html = pd.DataFrame()
-        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-        df_detalles_html["Fondo"] = df_detalles_filtrado["fund"]
-        df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
-        df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
-        df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
-        df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
-        df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
-        df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
-        
-        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
-    else:
-        st.info("No se encontraron aportaciones para el criterio seleccionado.")
