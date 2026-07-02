@@ -536,6 +536,7 @@ final = final.rename(columns={
 dense["date"] = pd.to_datetime(dense["date"])
 portfolio = dense.groupby("date", as_index=False).agg(invested=("cum_invested", "sum"), value=("market_value", "sum")).sort_values("date").reset_index(drop=True)
 portfolio = portfolio.dropna(subset=["value"])
+portfolio = portfolio.iloc[:-1].copy()
 portfolio = portfolio[portfolio["value"] > 0]
 portfolio["profit"] = portfolio["value"] - portfolio["invested"]
 
