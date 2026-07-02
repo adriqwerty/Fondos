@@ -885,19 +885,112 @@ with tab_distribucion:
     with col_grande:
         st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
-# TAB 5: DETALLE DE APORTACIONES
+# ==========================================================
+# 🔍 TAB 5: DETALLE DE APORTACIONES + GRÁFICO DE REFERENCIA VL
+# ==========================================================
 with tab_detalles:
-    col_select, _ = st.columns([1.5, 2])
-    with col_select:
-        fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
+    # 1. Selectores para filtrar
+    col_select1, col_select2 = st.columns([1.5, 2])
+    with col_select1:
+        # Para el gráfico necesitamos obligatoriamente un fondo real, por lo que quitamos el "Todos" de la selección principal del gráfico
+        lista_fondos_reales = sorted(df["fund"].dropna().unique().tolist())
+        fondo_seleccionado = st.selectbox("Selecciona un fondo para analizar:", lista_fondos_reales, key="sb_detalles_fondo")
     
-    df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
+    # Filtrar los datos por el fondo seleccionado
+    df_detalles_filtrado = df[df["fund"] == fondo_seleccionado].copy()
     
     if not df_detalles_filtrado.empty:
+        # Ordenar cronológicamente para el gráfico
+        df_grafico = df_detalles_filtrado.sort_values("date").reset_index(drop=True)
+        
+        # Obtener el precio VL actual del mapa para la línea de referencia
+        isin_del_fondo = df_grafico["isin"].iloc[0]
+        vl_actual_fondo = price_map.get(isin_del_fondo, None)
+        
+        # 2. CONSTRUCCIÓN DEL GRÁFICO INTERACTIVO (PLOTLY)
+        fig_aportaciones = go.Figure()
+        
+        # Añadir barras: Importe Invertido (Eje Y Izquierdo)
+        fig_aportaciones.add_trace(go.Bar(
+            x=df_grafico["date"],
+            y=df_grafico["amount"],
+            name="Importe Invertido (€)",
+            marker_color="rgba(59, 130, 246, 0.4)",  # Azul translúcido premium
+            hovertemplate="<b>Fecha:</b> %{x|%d/%m/%Y}<br><b>Invertido:</b> %{y:,.2f} €<extra></extra>",
+            yaxis="y"
+        ))
+        
+        # Añadir puntos: Precio de compra (Eje Y Derecho)
+        fig_aportaciones.add_trace(go.Scatter(
+            x=df_grafico["date"],
+            y=df_grafico["price"],
+            name="Precio Compra (VL)",
+            mode="markers+lines",
+            marker=dict(color="#10b981", size=10, line=dict(color="#0f172a", width=2)),
+            line=dict(color="rgba(16, 185, 129, 0.3)", width=1.5, dash="dot"),
+            hovertemplate="<b>Fecha:</b> %{x|%d/%m/%Y}<br><b>Precio Compra:</b> %{y:,.4f} €<extra></extra>",
+            yaxis="y2"
+        ))
+        
+        # Añadir Línea de Referencia Horizontal: VL Actual
+        if vl_actual_fondo:
+            fig_aportaciones.add_hline(
+                y=vl_actual_fondo, 
+                line_dash="dash", 
+                line_color="#f43f5e", # Rojo/Rosa premium para que contraste bien
+                line_width=2,
+                yref="y2", # Vinculado al eje del VL (derecho)
+                annotation_text=f"VL Actual: {vl_actual_fondo:,.4f} €",
+                annotation_position="top right",
+                annotation_font=dict(size=12, color="#f43f5e", weight="bold")
+            )
+            
+        # Configurar el diseño de doble eje Y para que convivan importes (€) y precios de participación
+        fig_aportaciones.update_layout(
+            title=dict(
+                text=f"<b>Aportaciones Históricas vs Estado Actual — {fondo_seleccionado}</b>", 
+                font=dict(size=15, color="#cbd5e1")
+            ),
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=20, r=20, t=60, b=20),
+            height=380,
+            hovermode="x unified",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis=dict(
+                showgrid=False,
+                type='date',
+                tickformat="%d/%m/%Y"
+            ),
+            yaxis=dict(
+                title="Importe Invertido (€)",
+                titlefont=dict(color="#60a5fa"),
+                tickfont=dict(color="#60a5fa"),
+                showgrid=True,
+                gridcolor="rgba(51, 65, 85, 0.3)"
+            ),
+            yaxis2=dict(
+                title="Precio Participación (VL)",
+                titlefont=dict(color="#10b981"),
+                tickfont=dict(color="#10b981"),
+                anchor="x",
+                overlaying="y",
+                side="right",
+                showgrid=False
+            )
+        )
+        
+        # Renderizar gráfico
+        st.plotly_chart(fig_aportaciones, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        
+        # 3. TABLA DE DETALLES ABAJO DEL GRÁFICO (Ordenada por más reciente arriba)
         df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
         df_detalles_html = pd.DataFrame()
         df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-        df_detalles_html["Fondo"] = df_detalles_filtrado["fund"]
         df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
         df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
@@ -907,4 +1000,4 @@ with tab_detalles:
         
         render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
     else:
-        st.info("No se encontraron aportaciones para el criterio seleccionado.")
+        st.info("No se encontraron aportaciones para el fondo seleccionado.")
