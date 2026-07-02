@@ -942,9 +942,9 @@ with tab_detalles:
                     .drop_duplicates(subset="date", keep="last")
             )
 
-else:
-    # Si no existe ningún histórico aún
-    hist = graf[["date", "price"]].rename(columns={"price": "vl"})
+        else:
+            # Si no existe ningún histórico aún
+            hist = graf[["date", "price"]].rename(columns={"price": "vl"})
 
         graf["Color"] = graf["price"].apply(
             lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
