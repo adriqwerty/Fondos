@@ -909,39 +909,86 @@ with tab_detalles:
     # ==========================================================
     if fondo_seleccionado != "Todos" and not df_detalles_filtrado.empty:
 
-        ultimo_vl = df_detalles_filtrado["current_price"].iloc[0]
-
         graf = df_detalles_filtrado.sort_values("date").copy()
 
+        ultimo_vl = graf["current_price"].iloc[0]
+
+        # ------------------------------------
         # Histórico del VL
+        # ------------------------------------
         hist = (
-            hist_df[hist_df["fund"] == fondo_seleccionado]
+            hist_df[hist_df["fund"] == fondo_seleccionado][["date", "vl"]]
             .sort_values("date")
             .copy()
         )
 
-        graf["Color"] = graf["price"].apply(
-            lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
+        if hist.empty:
+
+            hist = (
+                graf[["date", "price"]]
+                .rename(columns={"price": "vl"})
+            )
+
+        else:
+
+            primera_fecha_vl = hist["date"].min()
+
+            compras = (
+                graf[graf["date"] <= primera_fecha_vl][["date", "price"]]
+                .rename(columns={"price": "vl"})
+            )
+
+            hist = pd.concat(
+                [compras, hist],
+                ignore_index=True
+            )
+
+            hist = (
+                hist.sort_values("date")
+                    .groupby("date", as_index=False)
+                    .last()
+            )
+
+            hist["vl"] = hist["vl"].ffill()
+
+        # ------------------------------------
+        # Color de las compras
+        # ------------------------------------
+        graf["Color"] = np.where(
+            graf["price"] <= ultimo_vl,
+            "#10b981",
+            "#ef4444"
         )
 
-        # Tamaño de las burbujas
+        # ------------------------------------
+        # Tamaño según importe invertido
+        # ------------------------------------
         tam_min = 10
         tam_max = 35
 
-        importe_min = graf["amount"].min()
-        importe_max = graf["amount"].max()
+        if graf["amount"].max() == graf["amount"].min():
 
-        if importe_min == importe_max:
             graf["size"] = 18
-        else:
-            graf["size"] = tam_min + (
-                (graf["amount"] - importe_min)
-                / (importe_max - importe_min)
-            ) * (tam_max - tam_min)
 
+        else:
+
+            graf["size"] = (
+                tam_min
+                + (
+                    (graf["amount"] - graf["amount"].min())
+                    /
+                    (graf["amount"].max() - graf["amount"].min())
+                )
+                * (tam_max - tam_min)
+            )
+
+        # ------------------------------------
+        # Gráfico
+        # ------------------------------------
         fig = go.Figure()
 
-        # Evolución del fondo
+        # Evolución del VL
+
         fig.add_trace(
             go.Scatter(
                 x=hist["date"],
@@ -955,7 +1002,8 @@ with tab_detalles:
             )
         )
 
-        # Línea del VL actual
+        # Línea VL actual
+
         fig.add_hline(
             y=ultimo_vl,
             line_dash="dash",
@@ -965,6 +1013,7 @@ with tab_detalles:
         )
 
         # Compras
+
         fig.add_trace(
             go.Scatter(
                 x=graf["date"],
@@ -975,49 +1024,58 @@ with tab_detalles:
                     color=graf["Color"],
                     size=graf["size"],
                     sizemode="diameter",
+                    opacity=0.90,
                     line=dict(
                         color="white",
                         width=1.5
-                    ),
-                    opacity=0.90
+                    )
                 ),
-                customdata=graf[
-                    [
-                        "amount",
-                        "units",
-                        "beneficio",
-                        "rentabilidad"
-                    ]
-                ],
+                customdata=np.stack(
+                    (
+                        graf["amount"],
+                        graf["units"],
+                        graf["beneficio"],
+                        graf["rentabilidad"]
+                    ),
+                    axis=-1
+                ),
                 hovertemplate=
-                    "<b>%{x|%d/%m/%Y}</b><br>" +
-                    "Precio compra: %{y:.4f} €<br>" +
-                    "Importe: %{customdata[0]:.2f} €<br>" +
-                    "Participaciones: %{customdata[1]:.4f}<br>" +
-                    "Ganancia: %{customdata[2]:.2f} €<br>" +
+                    "<b>%{x|%d/%m/%Y}</b><br>"
+                    "Precio compra: %{y:.4f} €<br>"
+                    "Importe: %{customdata[0]:.2f} €<br>"
+                    "Participaciones: %{customdata[1]:.4f}<br>"
+                    "Ganancia: %{customdata[2]:.2f} €<br>"
                     "Rentabilidad: %{customdata[3]:.2f}%<extra></extra>"
             )
         )
 
         fig.update_layout(
-            title=f"Evolución del VL y Aportaciones - {fondo_seleccionado}",
+
+            title=f"{fondo_seleccionado}",
+
             template="plotly_dark",
+
             paper_bgcolor="rgba(0,0,0,0)",
+
             plot_bgcolor="rgba(0,0,0,0)",
+
             height=600,
+
             hovermode="closest",
+
             xaxis_title="Fecha",
-            yaxis_title="Valor Liquidativo (€)",
+
+            yaxis_title="Valor liquidativo (€)",
+
             legend=dict(
                 orientation="h",
                 y=1.02,
                 x=0
             )
+
         )
 
-        fig.update_xaxes(
-            showgrid=False
-        )
+        fig.update_xaxes(showgrid=False)
 
         fig.update_yaxes(
             gridcolor="rgba(51,65,85,0.35)"
@@ -1032,6 +1090,7 @@ with tab_detalles:
     # ==========================================================
     # TABLA
     # ==========================================================
+
     if not df_detalles_filtrado.empty:
 
         df_detalles_filtrado = df_detalles_filtrado.sort_values(
