@@ -913,12 +913,38 @@ with tab_detalles:
 
         graf = df_detalles_filtrado.sort_values("date").copy()
 
-        # Histórico del VL
         hist = (
-            hist_df[hist_df["fund"] == fondo_seleccionado]
-            .sort_values("date")
-            .copy()
+        hist_df[hist_df["fund"] == fondo_seleccionado]
+        .sort_values("date")
+        .copy()
         )
+
+        # ======================================================
+        # Completar histórico inicial con las aportaciones
+        # ======================================================
+
+        if not hist.empty:
+
+            primera_fecha_vl = hist["date"].min()
+
+            compras_antiguas = (
+                graf[graf["date"] < primera_fecha_vl][["date", "price"]]
+                .rename(columns={"price": "vl"})
+            )
+
+            hist = pd.concat(
+                [compras_antiguas, hist[["date", "vl"]]],
+                ignore_index=True
+            )
+
+            hist = (
+                hist.sort_values("date")
+                    .drop_duplicates(subset="date", keep="last")
+            )
+
+else:
+    # Si no existe ningún histórico aún
+    hist = graf[["date", "price"]].rename(columns={"price": "vl"})
 
         graf["Color"] = graf["price"].apply(
             lambda x: "#10b981" if x <= ultimo_vl else "#ef4444"
