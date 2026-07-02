@@ -736,7 +736,7 @@ with tab_graficos:
 # 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (ESTILO MATRIZ MYINVESTOR)
 # ==========================================================
 # ==========================================================
-# 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (MATRIZ INTEGRADA %) Y (€)
+# 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (MATRIZ COMPACTA % Y €)
 # ==========================================================
 with tab_evolucion:
     if not portfolio.empty:
@@ -762,7 +762,7 @@ with tab_evolucion:
         meses_es = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"}
         cierres_mensuales["Mes"] = cierres_mensuales["month"].map(meses_es)
         
-        # 4. Calcular Totales Anuales de ambas métricas
+        # 4. Calcular Totales Anuales
         totales_pct = {}
         totales_eur = {}
         for y in cierres_mensuales["year"].unique():
@@ -783,22 +783,27 @@ with tab_evolucion:
                 totales_pct[y] = (ganancia_neta_año / val_inicial) * 100 if val_inicial else 0
                 totales_eur[y] = ganancia_neta_año
 
-        # 5. Pivotar ambas métricas por separado
+        # 5. Pivotar datos
         pivot_pct = cierres_mensuales.pivot(index="month", columns="year", values="rent_pct").reindex(range(1, 13))
         pivot_eur = cierres_mensuales.pivot(index="month", columns="year", values="rent_eur").reindex(range(1, 13))
         
         years_columns = sorted(list(cierres_mensuales["year"].unique()), reverse=True)
         
-        # 6. Construir la estructura HTML combinada directamente
-        html_matriz = '<div class="financial-table-container"><table class="financial-table"><thead><tr>'
-        html_matriz += '<th></th>'  # Celda esquina superior izquierda
+        # 6. HTML con CSS personalizado inline para controlar el ancho (max-width y margin: auto)
+        html_matriz = """
+        <div class="financial-table-container" style="max-width: 600px; margin: 0 auto 25px auto; border-radius: 16px;">
+            <table class="financial-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 24px; width: 35%;"></th>
+        """
         for y in years_columns:
-            html_matriz += f'<th>{y}</th>'
+            html_matriz += f'<th style="width: calc(65% / {len(years_columns)});">{y}</th>'
         html_matriz += '</tr></thead><tbody>'
         
-        # --- FILA DE TOTALES (Arriba, estilo MyInvestor) ---
-        html_matriz += '<tr style="background-color: #1e293b; border-bottom: 2px solid #334155; font-size: 15px;">'
-        html_matriz += '<td style="font-weight: 700; text-align: left; padding-left: 20px;">Total</td>'
+        # --- FILA DE TOTALES ---
+        html_matriz += '<tr style="background-color: #0f172a; border-bottom: 2px solid #334155; font-size: 15px;">'
+        html_matriz += '<td style="font-weight: 700; text-align: left; padding-left: 24px; color: #ffffff;">Total</td>'
         for y in years_columns:
             p_val = totales_pct.get(y, None)
             e_val = totales_eur.get(y, None)
@@ -806,9 +811,9 @@ with tab_evolucion:
             if p_val is not None and e_val is not None:
                 clase = ' class="pos-val"' if p_val > 0 else (' class="neg-val"' if p_val < 0 else '')
                 signo = '+' if p_val > 0 else ''
-                html_matriz += f'<td style="padding: 10px 16px;">' \
-                               f'<div{clase}>{signo}{p_val:.2f} %</div>' \
-                               f'<div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">{signo}{e_val:,.2f} €</div>' \
+                html_matriz += f'<td style="padding: 12px 16px;">' \
+                               f'<div{clase} style="font-size: 15px;">{signo}{p_val:.2f} %</div>' \
+                               f'<div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-weight: 400;">{signo}{e_val:,.2f} €</div>' \
                                f'</td>'
             else:
                 html_matriz += '<td>-</td>'
@@ -818,7 +823,7 @@ with tab_evolucion:
         for m_num in range(1, 13):
             nombre_mes = meses_es[m_num]
             html_matriz += '<tr>'
-            html_matriz += f'<td style="text-align: left; padding-left: 20px; color: #cbd5e1; font-weight: 600;">{nombre_mes}</td>'
+            html_matriz += f'<td style="text-align: left; padding-left: 24px; color: #cbd5e1; font-weight: 600;">{nombre_mes}</td>'
             
             for y in years_columns:
                 p_val = pivot_pct.loc[m_num, y] if y in pivot_pct.columns else None
@@ -827,9 +832,9 @@ with tab_evolucion:
                 if pd.notnull(p_val) and pd.notnull(e_val):
                     clase = ' class="pos-val"' if p_val > 0 else (' class="neg-val"' if p_val < 0 else '')
                     signo = '+' if p_val > 0 else ''
-                    html_matriz += f'<td>' \
+                    html_matriz += f'<td style="padding: 10px 16px;">' \
                                    f'<div{clase}>{signo}{p_val:.2f} %</div>' \
-                                   f'<div style="font-size: 11px; color: #64748b; margin-top: 1px;">{signo}{e_val:,.2f} €</div>' \
+                                   f'<div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-weight: 400;">{signo}{e_val:,.2f} €</div>' \
                                    f'</td>'
                 else:
                     html_matriz += '<td style="color: #475569;">-</td>'
@@ -837,7 +842,6 @@ with tab_evolucion:
             
         html_matriz += '</tbody></table></div>'
         
-        # Renderizado en Streamlit
         st.write(html_matriz, unsafe_allow_html=True)
     else:
         st.info("No hay datos suficientes para generar la matriz de rendimiento.")
