@@ -887,44 +887,27 @@ with tab_distribucion:
 
 # TAB 5: DETALLE DE APORTACIONES
 with tab_detalles:
-    col_select, _ = st.columns([1.5, 2])
-    with col_select:
-        fondo_seleccionado = st.selectbox("Filtrar por fondo específico:", ["Todos"] + sorted(df["fund"].dropna().unique().tolist()))
-    
-    df_detalles_filtrado = df.copy() if fondo_seleccionado == "Todos" else df[df["fund"] == fondo_seleccionado].copy()
-    
-    if not df_detalles_filtrado.empty:
-        df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
-        df_detalles_html = pd.DataFrame()
-        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
-        df_detalles_html["Fondo"] = df_detalles_filtrado["fund"]
-        df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
-        df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
-        df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
-        df_detalles_html["Valor Actual"] = df_detalles_filtrado["valor_actual"].map("{:,.2f} €".format)
-        df_detalles_html["Ganancia"] = df_detalles_filtrado["beneficio"].map("{:,.2f} €".format)
-        df_detalles_html["Rentabilidad"] = df_detalles_filtrado["rentabilidad"].map("{:.2f} %".format)
-        
-        render_financial_table(df_detalles_html, cols_color_render=["Ganancia", "Rentabilidad"])
-    else:
-        st.info("No se encontraron aportaciones para el criterio seleccionado.")
     col_select1, col_select2 = st.columns([1.5, 2])
     with col_select1:
         lista_fondos_reales = sorted(df["fund"].dropna().unique().tolist())
         fondo_seleccionado = st.selectbox("Selecciona un fondo para analizar:", lista_fondos_reales, key="sb_detalles_fondo")
-
+    
+    # Filtrado explícito y copia segura
     df_detalles_filtrado = df[df["fund"] == fondo_seleccionado].copy()
-
+    
     if not df_detalles_filtrado.empty:
+        # Ordenar cronológicamente para el gráfico de líneas y barras
         df_grafico = df_detalles_filtrado.sort_values("date").reset_index(drop=True)
+        
         isin_del_fondo = df_grafico["isin"].iloc[0]
         vl_actual_fondo = price_map.get(isin_del_fondo, None)
         
+        # Inicializar objeto gráfico vacío
         fig_aportaciones = go.Figure()
         
-        # 1. Configurar primero los ejes en el Layout para que existan 'y' e 'y2' de forma segura
+        # DEFINICIÓN PREVIA DEL DISEÑO (Garantiza que 'y' e 'y2' existan antes de pintar trazas o líneas)
         fig_aportaciones.update_layout(
-            title=f"<b>Aportaciones Históricas vs Estado Actual — {fondo_seleccionado}</b>",
+            title=dict(text=f"<b>Aportaciones Históricas vs Estado Actual — {fondo_seleccionado}</b>"),
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
@@ -952,8 +935,7 @@ with tab_detalles:
             )
         )
         
-        # 2. Añadir las series de datos vinculadas a sus respectivos ejes
-        # Barras: Importe invertido (Eje Y principal)
+        # Añadir Traza 1: Barras de Importe (Eje Y Principal)
         fig_aportaciones.add_trace(go.Bar(
             x=df_grafico["date"],
             y=df_grafico["amount"],
@@ -963,7 +945,7 @@ with tab_detalles:
             yaxis="y"
         ))
         
-        # Puntos: Precio de compra (Eje Y secundario)
+        # Añadir Traza 2: Línea + Puntos de Precio Compra (Eje Y Secundario)
         fig_aportaciones.add_trace(go.Scatter(
             x=df_grafico["date"],
             y=df_grafico["price"],
@@ -975,7 +957,7 @@ with tab_detalles:
             yaxis="y2"
         ))
         
-        # 3. Añadir la línea horizontal ahora que 'y2' ya está plenamente registrado en el gráfico
+        # Añadir la línea horizontal del VL Actual vinculada de forma segura a 'y2'
         if vl_actual_fondo is not None:
             try:
                 vl_float = float(vl_actual_fondo)
@@ -992,13 +974,17 @@ with tab_detalles:
             except Exception:
                 pass
             
+        # Renderizado del gráfico en Streamlit
         st.plotly_chart(fig_aportaciones, use_container_width=True, config={'displayModeBar': False})
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         
-        # Tabla detallada inferior
+        # Tabla Detallada Inferior (Orden inverso para ver lo más reciente primero)
         df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
         df_detalles_html = pd.DataFrame()
-        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else "")
+        
+        # Conversión ultra segura de fechas controlando Timestamp y objetos datetime.date
+        df_detalles_html["Fecha"] = pd.to_datetime(df_detalles_filtrado["date"]).dt.strftime("%d/%m/%Y")
+        
         df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
         df_detalles_html["Participaciones"] = df_detalles_filtrado["units"].map("{:,.4f}".format)
