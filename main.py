@@ -941,19 +941,16 @@ with tab_detalles:
                     line_color="#f43f5e", # Rojo/Rosa premium para que contraste bien
                     line_width=2,
                     yref="y2", # Vinculado al eje del VL (derecho)
-                    annotation_text=f"<b>VL Actual: {vl_float:,.4f} €</b>", # Negrita mediante HTML corregido
+                    annotation_text=f"<b>VL Actual: {vl_float:,.4f} €</b>",
                     annotation_position="top right",
-                    annotation_font=dict(size=12, color="#f43f5e") # Eliminado 'weight="bold"' para corregir el ValueError
+                    annotation_font=dict(size=12, color="#f43f5e")
                 )
             except Exception:
                 pass
             
-        # Configurar el diseño de doble eje Y para que convivan importes (€) y precios de participación
+        # Configurar el diseño de doble eje Y de forma limpia y plana
         fig_aportaciones.update_layout(
-            title=dict(
-                text=f"<b>Aportaciones Históricas vs Estado Actual — {fondo_seleccionado}</b>", 
-                font=dict(size=15, color="#cbd5e1")
-            ),
+            title=f"<b>Aportaciones Históricas vs Estado Actual — {fondo_seleccionado}</b>",
             template="plotly_dark",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
