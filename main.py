@@ -982,8 +982,10 @@ with tab_detalles:
         df_detalles_filtrado = df_detalles_filtrado.sort_values("date", ascending=False)
         df_detalles_html = pd.DataFrame()
         
-        # Conversión ultra segura de fechas controlando Timestamp y objetos datetime.date
-        df_detalles_html["Fecha"] = pd.to_datetime(df_detalles_filtrado["date"]).dt.strftime("%d/%m/%Y")
+        # 🔥 FORMATEO ULTRA SEGURO: Evita romper cuando los valores ya son objetos datetime.date de Python
+        df_detalles_html["Fecha"] = df_detalles_filtrado["date"].apply(
+            lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) and hasattr(x, "strftime") else ""
+        )
         
         df_detalles_html["Invertido"] = df_detalles_filtrado["amount"].map("{:,.2f} €".format)
         df_detalles_html["Precio Compra"] = df_detalles_filtrado["price"].map("{:,.4f} €".format)
