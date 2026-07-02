@@ -554,6 +554,49 @@ portfolio["1d (€)"] = portfolio["value"].diff(1)
 
 last = portfolio.iloc[-2] # Ajustado a -1 para tomar el último elemento real disponible
 
+# ==========================================================
+# CÁLCULO DE VARIACIÓN DIARIA BASADO EN GANANCIAS REALES (CON SALTO DE FESTIVOS)
+# ==========================================================
+portfolio_diario = portfolio.groupby("date", as_index=False).agg({
+    "value": "last", 
+    "invested": "last", 
+    "profit": "last"
+}).sort_values("date").reset_index(drop=True)
+
+var_euros = 0.0
+var_porcentaje = 0.0
+
+if len(portfolio_diario) >= 2:
+    idx_actual = len(portfolio_diario) - 1
+    last_day = portfolio_diario.iloc[idx_actual]
+    last = last_day  # Sincroniza KPI 1 y KPI 2
+    
+    idx_anterior = idx_actual - 1
+    encontrado = False
+    
+    while idx_anterior >= 0:
+        prev_day = portfolio_diario.iloc[idx_anterior]
+        posible_var_euros = last_day["profit"] - prev_day["profit"]
+        
+        if posible_var_euros != 0.0:
+            var_euros = posible_var_euros
+            var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
+            encontrado = True
+            break
+        idx_anterior -= 1
+        
+    if not encontrado:
+        prev_day = portfolio_diario.iloc[idx_actual - 1]
+        var_euros = last_day["profit"] - prev_day["profit"]
+        var_porcentaje = (var_euros / prev_day["value"]) * 100 if prev_day["value"] else 0
+else:
+    last = portfolio.iloc[-1] if not portfolio.empty else {"value": 0, "invested": 0, "profit": 0}
+
+
+
+
+
+
 
 
 
