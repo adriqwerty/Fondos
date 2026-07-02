@@ -553,7 +553,7 @@ datos_circular["Valor actual"] = pd.to_numeric(
 )
 
 # ==========================================================
-# CÁLCULO DE VARIACIÓN MENSUAL (MTD)
+# CÁLCULO DE VARIACIÓN MENSUAL (MTD) - ¡CORREGIDO!
 # ==========================================================
 var_mensual_porcentaje = 0.0
 var_mensual_euros = 0.0
@@ -561,23 +561,35 @@ valores_mes = []
 
 if not portfolio.empty:
     portfolio["date_dt"] = pd.to_datetime(portfolio["date"])
-    ultima_fecha_datos = portfolio["date_dt"].max()
-    año_actual = ultima_fecha_datos.year
-    mes_actual = ultima_fecha_datos.month
     
-    portfolio_mes = portfolio[
-        (portfolio["date_dt"].dt.year == año_actual) & 
-        (portfolio["date_dt"].dt.month == mes_actual)
-    ].sort_values("date_dt")
+    # 1. Agrupar por año y mes para simular exactamente los cierres mensuales del Tab 3
+    cierres_m = portfolio.sort_values("date_dt").groupby([portfolio["date_dt"].dt.year, portfolio["date_dt"].dt.month]).last().reset_index(drop=True)
+    
+    if not cierres_m.empty:
+        # El mes en curso/actual siempre será el último registro de estos cierres
+        cierre_actual = cierres_m.iloc[-1]
+        
+        if len(cierres_m) >= 2:
+            # Si hay historial, comparamos el cierre actual contra el último día del MES ANTERIOR
+            cierre_anterior = cierres_m.iloc[-2]
+            
+            var_mensual_euros = cierre_actual["profit"] - cierre_anterior["profit"]
+            # Financieramente se divide entre el VALOR TOTAL de la cartera del mes anterior, no el beneficio
+            var_mensual_porcentaje = (var_mensual_euros / cierre_anterior["value"]) * 100 if cierre_anterior["value"] else 0.0
+        else:
+            # Si es el primer mes de toda la cuenta, se calcula respecto al inicio
+            var_mensual_euros = cierre_actual["profit"]
+            var_mensual_porcentaje = (var_mensual_euros / cierre_actual["invested"]) * 100 if cierre_actual["invested"] else 0.0
 
+    # 2. Extraer de forma aislada los precios del mes actual exclusivamente para dibujar el Sparkline
+    ultima_fecha_datos = portfolio["date_dt"].max()
+    portfolio_mes = portfolio[
+        (portfolio["date_dt"].dt.year == ultima_fecha_datos.year) & 
+        (portfolio["date_dt"].dt.month == ultima_fecha_datos.month)
+    ].sort_values("date_dt")
+    
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
-        valor_final_mes = portfolio["profit"].iloc[-1]
-        valor_inicial_mes = portfolio_mes["profit"].iloc[0]
-        
-        
-var_mensual_euros = valor_final_mes - valor_inicial_mes
-var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
 
 # ==========================================
 # VISTA GENERAL Y PANELES
@@ -731,9 +743,6 @@ with tab_graficos:
     else:
         st.info("No hay datos históricos disponibles a partir del 18/05/2026.")
 
-# ==========================================================
-# 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (ESTILO MATRIZ MYINVESTOR)
-# ==========================================================
 # ==========================================================
 # 📊 TAB 3: HISTORIAL DE EVOLUCIÓN (MATRIZ COMPACTA % Y €)
 # ==========================================================
