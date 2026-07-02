@@ -577,10 +577,6 @@ if not portfolio.empty:
         st.write(valor_inicial_mes)
         st.write(valor_final_mes)
         
-        if len(portfolio_mes) == 1:
-            mes_anterior = portfolio[portfolio["date_dt"] < portfolio_mes["date_dt"].iloc[0]]
-            if not mes_anterior.empty:
-                valor_inicial_mes = mes_anterior["value"].iloc[-1]
         
         var_mensual_euros = valor_final_mes - valor_inicial_mes
         var_mensual_porcentaje = (var_mensual_euros / valor_inicial_mes) * 100 if valor_inicial_mes else 0
