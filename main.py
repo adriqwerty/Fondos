@@ -573,7 +573,7 @@ if not portfolio.empty:
     if not portfolio_mes.empty:
         valores_mes = portfolio_mes["value"].tolist()
         valor_final_mes = portfolio_mes["value"].iloc[-1]
-        valor_inicial_mes = portfolio_mes["value"].iloc[0]
+        valor_inicial_mes = portfolio_mes["profit"].iloc[0]
         st.write(valor_inicial_mes)
         
         if len(portfolio_mes) == 1:
