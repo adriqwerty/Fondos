@@ -583,22 +583,22 @@ if not portfolio.empty:
 
     # 2. Extraer de forma aislada los precios del mes actual exclusivamente para dibujar el Sparkline
     ultima_fecha_datos = portfolio["date_dt"].max()
-            portfolio_mes = portfolio[
-            (portfolio["date"].dt.year == año_actual) &
-            (portfolio["date"].dt.month == mes_actual)
-        ].sort_values("date")
+    portfolio_mes = portfolio[
+        (portfolio["date"].dt.year == año_actual) &
+        (portfolio["date"].dt.month == mes_actual)
+    ].sort_values("date")
 
-        portfolio_mes_anterior = portfolio[
-            portfolio["date"] < portfolio_mes["date"].min()
-        ].sort_values("date")
+    portfolio_mes_anterior = portfolio[
+        portfolio["date"] < portfolio_mes["date"].min()
+    ].sort_values("date")
 
-        if not portfolio_mes.empty:
+    if not portfolio_mes.empty:
 
-            if not portfolio_mes_anterior.empty:
-                valor_inicio = portfolio_mes_anterior["value"].iloc[-1]
-                valores_mes = [valor_inicio] + portfolio_mes["value"].tolist()
-            else:
-                valores_mes = portfolio_mes["value"].tolist()
+        if not portfolio_mes_anterior.empty:
+            valor_inicio = portfolio_mes_anterior["value"].iloc[-1]
+            valores_mes = [valor_inicio] + portfolio_mes["value"].tolist()
+        else:
+            valores_mes = portfolio_mes["value"].tolist()
 
 # ==========================================
 # VISTA GENERAL Y PANELES
