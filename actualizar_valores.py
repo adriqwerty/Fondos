@@ -1,4 +1,4 @@
-tengo un problema con este codigo: import requests
+import requests
 import pandas as pd
 import re
 import gspread
