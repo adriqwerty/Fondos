@@ -4,6 +4,7 @@ import re
 import gspread
 import os
 import json
+import datetime  # 🚨 CORREGIDO: Importación que faltaba
 from bs4 import BeautifulSoup
 from google.oauth2.service_account import Credentials
 from concurrent.futures import ThreadPoolExecutor  # 🚀 Multihilo
@@ -13,12 +14,44 @@ HEADERS = {
 }
 
 # =========================
+# CLEANERS CORREGIDOS
+# =========================
+def clean_vl(x):
+    if not x or str(x).strip() in ["--", ""]:
+        return None
+    # Eliminar comas de miles y símbolos de moneda
+    cleaned = re.sub(r'[^\d\.]', '', str(x).replace(",", "."))
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+def clean_date(x):
+    """Convierte fechas como 'Feb 28, 2026' o 'Feb 28' a formato YYYY-MM-DD."""
+    if not x:
+        return None
+    x = str(x).strip()
+    match = re.search(r'([A-Za-z]{3}\s+\d{1,2}(?:,\s+\d{4})?)', x)
+    if not match:
+        return None
+        
+    date_str = match.group(1)
+    if "," not in date_str:
+        current_year = datetime.datetime.now().year
+        date_str = f"{date_str}, {current_year}"
+        
+    try:
+        dt = datetime.datetime.strptime(date_str, "%b %d, %Y")
+        return dt.strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+# =========================
 # EXTRAER DESDE FUENTES SECUNDARIAS
 # =========================
 def obtener_vl_fallback(isin):
     """
-    Extracción de emergencia para ISINs no indexados en FT (ej. LU1295551144).
-    Analiza QueFondos o Morningstar España.
+    Extracción de emergencia para ISINs no indexados en FT (ej. Capital Group LU1295551144).
     """
     # 1. Intento en QueFondos.com
     url_qf = f"https://www.quefondos.com/es/fondos/ficha/index.html?isin={isin}"
@@ -30,18 +63,15 @@ def obtener_vl_fallback(isin):
             date_span = soup.find("span", {"id": "fechavl"})
             
             if vl_span:
-                # Limpiar valor numérico
-                raw_vl = vl_span.get_text(strip=True).replace(".", "").replace(",", ".")
-                vl = float(raw_vl)
-                
-                # Extraer la fecha (Formato DD/MM/YYYY en QueFondos)
-                date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-                if date_span:
-                    d_match = re.search(r'\d{2}/\d{2}/\d{4}', date_span.get_text())
-                    if d_match:
-                        date_str = datetime.datetime.strptime(d_match.group(0), "%d/%m/%Y").strftime("%Y-%m-%d")
-                
-                return [{"date_str": date_str, "isin": isin, "vl": round(vl, 6)}]
+                vl = clean_vl(vl_span.get_text(strip=True))
+                if vl is not None:
+                    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                    if date_span:
+                        d_match = re.search(r'\d{2}/\d{2}/\d{4}', date_span.get_text())
+                        if d_match:
+                            date_str = datetime.datetime.strptime(d_match.group(0), "%d/%m/%Y").strftime("%Y-%m-%d")
+                    
+                    return [{"date_str": date_str, "isin": isin, "vl": round(vl, 6)}]
     except Exception:
         pass
 
@@ -55,28 +85,21 @@ def obtener_vl_fallback(isin):
             if td_target:
                 val_td = td_target.find_next_sibling("td")
                 if val_td:
-                    parts = val_td.get_text(strip=True).split()
-                    raw_val = parts[1] if len(parts) > 1 else parts[0]
-                    vl = float(raw_val.replace(".", "").replace(",", "."))
-                    
-                    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-                    return [{"date_str": today_str, "isin": isin, "vl": round(vl, 6)}]
+                    vl = clean_vl(val_td.get_text(strip=True))
+                    if vl is not None:
+                        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                        return [{"date_str": today_str, "isin": isin, "vl": round(vl, 6)}]
     except Exception:
         pass
 
     return None
 
-
 # =========================
-# CONFIG
+# CONFIG & AUTH GOOGLE SHEETS
 # =========================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1QA6bpWTw_uILBwO3-z7GXfA3QOGor_EoX4m-ljdsTe4"
-HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# =========================
-# AUTH GOOGLE SHEETS
-# =========================
 def get_service_account_info():
     if "GOOGLE_CREDS" in os.environ:
         return json.loads(os.environ["GOOGLE_CREDS"])
@@ -91,9 +114,6 @@ def connect_gsheets():
     creds = Credentials.from_service_account_info(info, scopes=SCOPES)
     return gspread.authorize(creds)
 
-# =========================
-# LAZY INIT SHEETS
-# =========================
 client = None
 sh = None
 ws_fondos = None
@@ -109,28 +129,12 @@ def init_sheets():
     ws_hist = sh.worksheet("HistoricoVL")
 
 # =========================
-# CLEANERS
-# =========================
-def clean_vl(x):
-    # Optimizado: Limpieza limpia en cadena en lugar de múltiples asignaciones
-    x = str(x).strip().replace(",", "")
-    try:
-        return float(x)
-    except:
-        return None
-
-def clean_date(x):
-    match = re.search(r'([A-Za-z]{3,9}\s\d{1,2},\s\d{4})', str(x))
-    return match.group(1) if match else x
-
-# =========================
 # FT SCRAPER (TRABAJADOR MULTIHILO)
 # =========================
 def procesar_un_isin(row, existing_keys):
     isin = str(row["isin"]).strip()
     data = []
     
-    # 1. Probar URLs alternativas de FT
     urls_ft = [
         f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR",
         f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:USD",
@@ -164,19 +168,24 @@ def procesar_un_isin(row, existing_keys):
                                         "vl": round(p_vl, 6)
                                     })
                     if data:
-                        break # Si obtuvimos datos válidos de FT, detenemos los reintentos
+                        break
         except Exception:
             continue
 
-    # 2. Si Financial Times no entregó registros (caso LU1295551144), invocar fallback
+    # Rescate para ISINs como LU1295551144 si FT no devuelve filas
     if not data:
-        data = obtener_vl_fallback(isin)
+        fallback_res = obtener_vl_fallback(isin)
+        if fallback_res:
+            for item in fallback_res:
+                key = f"{item['date_str']}_{isin}"
+                if key not in existing_keys:
+                    data.append(item)
 
     if not data:
         return None
 
-    # Formatear el resultado como array directo para append_rows de gspread
     return [[item["date_str"], item["isin"], item["vl"]] for item in data]
+
 # =========================
 # GOOGLE SHEETS HELPERS
 # =========================
@@ -193,7 +202,7 @@ def load_existing_keys():
             return set()
         df["key"] = df["date"].astype(str) + "_" + df["isin"].astype(str)
         return set(df["key"])
-    except:
+    except Exception:
         return set()
 
 # =========================
@@ -205,22 +214,19 @@ def actualizar_valores():
     existing_keys = load_existing_keys()
     
     print(f"📊 Fondos: {len(fondos)} | 🔑 Registros en histórico: {len(existing_keys)}")
-    print("🚀 Lanzando extracción en paralelo a Financial Times...")
+    print("🚀 Lanzando extracción en paralelo...")
 
     filas_a_insertar = []
 
-    # 🎯 CLAVE 1: Multihilo (Lanza hasta 10 peticiones concurrentes a la vez)
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        # Mapeamos los fondos al pool de hilos
+    with ThreadPoolExecutor(max_workers=5) as executor:  # Reducido a 5 para evitar bloqueos
         resultados = executor.map(lambda r: procesar_un_isin(r, existing_keys), [row for _, row in fondos.iterrows()])
         
         for res in resultados:
             if res is not None:
                 filas_a_insertar.extend(res)
 
-    # 🎯 CLAVE 2: Inserción Masiva (Batch Upload)
     if filas_a_insertar:
-        print(f"📤 Subiendo {len(filas_a_insertar)} nuevas filas a Google Sheets en un solo bloque...")
+        print(f"📤 Subiendo {len(filas_a_insertar)} nuevas filas a Google Sheets...")
         init_sheets()
         ws_hist.append_rows(filas_a_insertar, value_input_option="RAW")
         print("✔ Datos subidos con éxito.")
