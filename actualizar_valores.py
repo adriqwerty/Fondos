@@ -8,6 +8,65 @@ from bs4 import BeautifulSoup
 from google.oauth2.service_account import Credentials
 from concurrent.futures import ThreadPoolExecutor  # 🚀 Multihilo
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
+# =========================
+# EXTRAER DESDE FUENTES SECUNDARIAS
+# =========================
+def obtener_vl_fallback(isin):
+    """
+    Extracción de emergencia para ISINs no indexados en FT (ej. LU1295551144).
+    Analiza QueFondos o Morningstar España.
+    """
+    # 1. Intento en QueFondos.com
+    url_qf = f"https://www.quefondos.com/es/fondos/ficha/index.html?isin={isin}"
+    try:
+        r = requests.get(url_qf, headers=HEADERS, timeout=6)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "lxml")
+            vl_span = soup.find("span", {"id": "vliquidativo"})
+            date_span = soup.find("span", {"id": "fechavl"})
+            
+            if vl_span:
+                # Limpiar valor numérico
+                raw_vl = vl_span.get_text(strip=True).replace(".", "").replace(",", ".")
+                vl = float(raw_vl)
+                
+                # Extraer la fecha (Formato DD/MM/YYYY en QueFondos)
+                date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                if date_span:
+                    d_match = re.search(r'\d{2}/\d{2}/\d{4}', date_span.get_text())
+                    if d_match:
+                        date_str = datetime.datetime.strptime(d_match.group(0), "%d/%m/%Y").strftime("%Y-%m-%d")
+                
+                return [{"date_str": date_str, "isin": isin, "vl": round(vl, 6)}]
+    except Exception:
+        pass
+
+    # 2. Intento en Morningstar ES
+    url_ms = f"https://www.morningstar.es/es/funds/snapshot/snapshot.aspx?id={isin}"
+    try:
+        r = requests.get(url_ms, headers=HEADERS, timeout=6)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "lxml")
+            td_target = soup.find("td", text=re.compile(r"NAV|Valor Liquidativo", re.I))
+            if td_target:
+                val_td = td_target.find_next_sibling("td")
+                if val_td:
+                    parts = val_td.get_text(strip=True).split()
+                    raw_val = parts[1] if len(parts) > 1 else parts[0]
+                    vl = float(raw_val.replace(".", "").replace(",", "."))
+                    
+                    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                    return [{"date_str": today_str, "isin": isin, "vl": round(vl, 6)}]
+    except Exception:
+        pass
+
+    return None
+
+
 # =========================
 # CONFIG
 # =========================
@@ -68,60 +127,56 @@ def clean_date(x):
 # FT SCRAPER (TRABAJADOR MULTIHILO)
 # =========================
 def procesar_un_isin(row, existing_keys):
-    """
-    Función optimizada para ejecutarse en paralelo por cada ISIN.
-    """
-    isin = row["isin"]
-    fondo = row["fondo"]
-    
-    url = f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=10) # Timeout de seguridad añadido
-        if r.status_code != 200:
-            return None
-    except Exception:
-        return None
-
-    soup = BeautifulSoup(r.text, "lxml")
-    table = soup.find("table")
-    if not table:
-        return None
-
-    rows = table.find_all("tr")
+    isin = str(row["isin"]).strip()
     data = []
-
-    for r_node in rows[1:]:
-        cols = r_node.find_all("td")
-        if len(cols) < 5:
+    
+    # 1. Probar URLs alternativas de FT
+    urls_ft = [
+        f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR",
+        f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:USD",
+        f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}"
+    ]
+    
+    for url in urls_ft:
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=6)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, "lxml")
+                table = soup.find("table", {"class": re.compile(r".*mod-ui-table.*")}) or soup.find("table")
+                
+                if table:
+                    rows = table.find_all("tr")
+                    for r_node in rows[1:]:
+                        cols = r_node.find_all("td")
+                        if len(cols) >= 5:
+                            raw_date = cols[0].get_text(strip=True)
+                            raw_vl = cols[4].get_text(strip=True)
+                            
+                            p_date = clean_date(raw_date)
+                            p_vl = clean_vl(raw_vl)
+                            
+                            if p_date and p_vl is not None:
+                                key = f"{p_date}_{isin}"
+                                if key not in existing_keys:
+                                    data.append({
+                                        "date_str": p_date,
+                                        "isin": isin,
+                                        "vl": round(p_vl, 6)
+                                    })
+                    if data:
+                        break # Si obtuvimos datos válidos de FT, detenemos los reintentos
+        except Exception:
             continue
-        data.append({
-            "date": cols[0].get_text(strip=True),
-            "vl": cols[4].get_text(strip=True)
-        })
+
+    # 2. Si Financial Times no entregó registros (caso LU1295551144), invocar fallback
+    if not data:
+        data = obtener_vl_fallback(isin)
 
     if not data:
         return None
 
-    df = pd.DataFrame(data)
-    df["date"] = df["date"].apply(clean_date)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df["vl"] = df["vl"].apply(clean_vl)
-    df = df.dropna(subset=["date"])
-    
-    # Añadir metadatos de Google Sheets aquí mismo en memoria
-    df["isin"] = isin
-    df["date_str"] = df["date"].dt.strftime("%Y-%m-%d")
-    df["key"] = df["date_str"] + "_" + df["isin"]
-    
-    # Filtrar duplicados antes de juntar los datos
-    df = df[~df["key"].isin(existing_keys)]
-    
-    if df.empty:
-        return None
-        
-    df["vl"] = df["vl"].astype(float).round(6)
-    return df[["date_str", "isin", "vl"]].values.tolist()
-
+    # Formatear el resultado como array directo para append_rows de gspread
+    return [[item["date_str"], item["isin"], item["vl"]] for item in data]
 # =========================
 # GOOGLE SHEETS HELPERS
 # =========================
