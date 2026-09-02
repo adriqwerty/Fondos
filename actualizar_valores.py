@@ -67,16 +67,14 @@ def clean_date(x):
 # =========================
 # FT SCRAPER (TRABAJADOR MULTIHILO)
 # =========================
-def procesar_un_isin(row, existing_keys):
+def fetch_boursorama_lu1295551144():
     """
-    Función optimizada para ejecutarse en paralelo por cada ISIN.
+    Scraper específico para LU1295551144 desde Boursorama.
+    Extrae la tabla histórica disponible en el HTML nativo.
     """
-    isin = row["isin"]
-    fondo = row["fondo"]
-    
-    url = f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR"
+    url = "https://www.boursorama.com/bourse/opcvm/cours/tab-historiques/0P00016RPN/"
     try:
-        r = requests.get(url, headers=HEADERS, timeout=10) # Timeout de seguridad añadido
+        r = requests.get(url, headers=HEADERS, timeout=10)
         if r.status_code != 200:
             return None
     except Exception:
@@ -92,28 +90,86 @@ def procesar_un_isin(row, existing_keys):
 
     for r_node in rows[1:]:
         cols = r_node.find_all("td")
-        if len(cols) < 5:
+        if len(cols) < 2:
             continue
+        
+        # Boursorama muestra Fecha en Columna 0 y Cierre/VL en Columna 1
+        fecha_txt = cols[0].get_text(strip=True)
+        vl_txt = cols[1].get_text(strip=True)
+        
         data.append({
-            "date": cols[0].get_text(strip=True),
-            "vl": cols[4].get_text(strip=True)
+            "date": fecha_txt,
+            "vl": vl_txt
         })
 
     if not data:
         return None
 
     df = pd.DataFrame(data)
-    df["date"] = df["date"].apply(clean_date)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df["vl"] = df["vl"].apply(clean_vl)
-    df = df.dropna(subset=["date"])
+    # Convertir formato de fecha de Boursorama (DD/MM/YYYY) a Datetime
+    df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
     
-    # Añadir metadatos de Google Sheets aquí mismo en memoria
+    # Limpieza de VL (Boursorama usa coma decimal y espacios)
+    df["vl"] = df["vl"].astype(str).str.replace(" ", "").str.replace(",", ".")
+    df["vl"] = pd.to_numeric(df["vl"], errors="coerce")
+    
+    df = df.dropna(subset=["date", "vl"])
+    return df
+
+def procesar_un_isin(row, existing_keys):
+    """
+    Función optimizada para ejecutarse en paralelo por cada ISIN.
+    Soporta Financial Times (por defecto) y Boursorama (para ISINs conflictivos).
+    """
+    isin = row["isin"]
+    
+    # 🎯 EXCEPCIÓN / FALLBACK PARA ESTE ISIN EN PARTICULAR
+    if isin == "LU1295551144":
+        df = fetch_boursorama_lu1295551144()
+        if df is None or df.empty:
+            return None
+    else:
+        # LÓGICA ESTÁNDAR PARA FINANCIAL TIMES
+        url = f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR"
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=10)
+            if r.status_code != 200:
+                return None
+        except Exception:
+            return None
+
+        soup = BeautifulSoup(r.text, "lxml")
+        table = soup.find("table")
+        if not table:
+            return None
+
+        rows = table.find_all("tr")
+        data = []
+
+        for r_node in rows[1:]:
+            cols = r_node.find_all("td")
+            if len(cols) < 5:
+                continue
+            data.append({
+                "date": cols[0].get_text(strip=True),
+                "vl": cols[4].get_text(strip=True)
+            })
+
+        if not data:
+            return None
+
+        df = pd.DataFrame(data)
+        df["date"] = df["date"].apply(clean_date)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["vl"] = df["vl"].apply(clean_vl)
+        df = df.dropna(subset=["date", "vl"])
+
+    # 🎯 PROCESAMIENTO COMÚN Y HOMOGÉNEO PARA CUALQUIER FUENTE
     df["isin"] = isin
     df["date_str"] = df["date"].dt.strftime("%Y-%m-%d")
     df["key"] = df["date_str"] + "_" + df["isin"]
     
-    # Filtrar duplicados antes de juntar los datos
+    # Filtrar duplicados con las claves de Google Sheets
     df = df[~df["key"].isin(existing_keys)]
     
     if df.empty:
