@@ -53,7 +53,6 @@ def init_sheets():
 # CLEANERS
 # =========================
 def clean_vl(x):
-    # Optimizado: Limpieza limpia en cadena en lugar de múltiples asignaciones
     x = str(x).strip().replace(",", "")
     try:
         return float(x)
@@ -65,12 +64,11 @@ def clean_date(x):
     return match.group(1) if match else x
 
 # =========================
-# FT SCRAPER (TRABAJADOR MULTIHILO)
+# SCRAPERS DE FONDOS
 # =========================
 def fetch_boursorama_lu1295551144():
     """
     Scraper específico para LU1295551144 desde Boursorama.
-    Extrae la tabla histórica disponible en el HTML nativo.
     """
     url = "https://www.boursorama.com/bourse/opcvm/cours/tab-historiques/0P00016RPN/"
     try:
@@ -93,7 +91,6 @@ def fetch_boursorama_lu1295551144():
         if len(cols) < 2:
             continue
         
-        # Boursorama muestra Fecha en Columna 0 y Cierre/VL en Columna 1
         fecha_txt = cols[0].get_text(strip=True)
         vl_txt = cols[1].get_text(strip=True)
         
@@ -106,10 +103,10 @@ def fetch_boursorama_lu1295551144():
         return None
 
     df = pd.DataFrame(data)
-    # Convertir formato de fecha de Boursorama (DD/MM/YYYY) a Datetime
+    # Formato de fecha europeo de Boursorama (DD/MM/YYYY)
     df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
     
-    # Limpieza de VL (Boursorama usa coma decimal y espacios)
+    # Limpieza de VL (espacios y comas)
     df["vl"] = df["vl"].astype(str).str.replace(" ", "").str.replace(",", ".")
     df["vl"] = pd.to_numeric(df["vl"], errors="coerce")
     
@@ -118,18 +115,19 @@ def fetch_boursorama_lu1295551144():
 
 def procesar_un_isin(row, existing_keys):
     """
-    Función optimizada para ejecutarse en paralelo por cada ISIN.
-    Soporta Financial Times (por defecto) y Boursorama (para ISINs conflictivos).
+    Procesa cada ISIN. Redirige a Boursorama si es el ISIN especial LU1295551144, 
+    o a Financial Times para todos los demás.
     """
     isin = row["isin"]
     
-    # 🎯 EXCEPCIÓN / FALLBACK PARA ESTE ISIN EN PARTICULAR
+    # 1. Caso especial: Boursorama
     if isin == "LU1295551144":
         df = fetch_boursorama_lu1295551144()
         if df is None or df.empty:
             return None
+            
+    # 2. Caso estándar: Financial Times
     else:
-        # LÓGICA ESTÁNDAR PARA FINANCIAL TIMES
         url = f"https://markets.ft.com/data/funds/tearsheet/historical?s={isin}:EUR"
         try:
             r = requests.get(url, headers=HEADERS, timeout=10)
@@ -164,12 +162,12 @@ def procesar_un_isin(row, existing_keys):
         df["vl"] = df["vl"].apply(clean_vl)
         df = df.dropna(subset=["date", "vl"])
 
-    # 🎯 PROCESAMIENTO COMÚN Y HOMOGÉNEO PARA CUALQUIER FUENTE
+    # 3. Formateo unificado para Google Sheets
     df["isin"] = isin
     df["date_str"] = df["date"].dt.strftime("%Y-%m-%d")
     df["key"] = df["date_str"] + "_" + df["isin"]
     
-    # Filtrar duplicados con las claves de Google Sheets
+    # Filtrar claves que ya existen en tu hoja
     df = df[~df["key"].isin(existing_keys)]
     
     if df.empty:
@@ -206,20 +204,19 @@ def actualizar_valores():
     existing_keys = load_existing_keys()
     
     print(f"📊 Fondos: {len(fondos)} | 🔑 Registros en histórico: {len(existing_keys)}")
-    print("🚀 Lanzando extracción en paralelo a Financial Times...")
+    print("🚀 Lanzando extracción en paralelo...")
 
     filas_a_insertar = []
 
-    # 🎯 CLAVE 1: Multihilo (Lanza hasta 10 peticiones concurrentes a la vez)
+    # 🎯 Multihilo (Lanza hasta 10 peticiones concurrentes a la vez)
     with ThreadPoolExecutor(max_workers=10) as executor:
-        # Mapeamos los fondos al pool de hilos
         resultados = executor.map(lambda r: procesar_un_isin(r, existing_keys), [row for _, row in fondos.iterrows()])
         
         for res in resultados:
             if res is not None:
                 filas_a_insertar.extend(res)
 
-    # 🎯 CLAVE 2: Inserción Masiva (Batch Upload)
+    # 🎯 Inserción Masiva (Batch Upload)
     if filas_a_insertar:
         print(f"📤 Subiendo {len(filas_a_insertar)} nuevas filas a Google Sheets en un solo bloque...")
         init_sheets()
