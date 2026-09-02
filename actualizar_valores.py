@@ -27,8 +27,22 @@ def get_service_account_info():
     except Exception:
         raise RuntimeError("No credentials found (Streamlit secrets or GOOGLE_CREDS env var)")
 
+# =========================
+# AUTH GOOGLE SHEETS
+# =========================
 def connect_gsheets():
-    info = get_service_account_info()
+    # Intenta leer credenciales locales en desarrollo
+    if os.path.exists("credentials.json"):
+        creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        return gspread.authorize(creds)
+    
+    # Entorno de Streamlit / Servidor
+    if "GOOGLE_CREDS" in os.environ:
+        info = json.loads(os.environ["GOOGLE_CREDS"])
+    else:
+        import streamlit as st
+        info = st.secrets["gcp_service_account"]
+        
     creds = Credentials.from_service_account_info(info, scopes=SCOPES)
     return gspread.authorize(creds)
 
@@ -66,64 +80,52 @@ def clean_date(x):
 # =========================
 # SCRAPERS DE FONDOS
 # =========================
-def fetch_quefondos_lu1295551144():
+def fetch_boursorama_lu1295551144():
     """
-    Scraper optimizado y directo para LU1295551144 desde QueFondos.
-    Extrae el valor liquidativo y la fecha exacta del HTML estático.
+    Scraper específico para LU1295551144 desde Boursorama.
     """
-    url = "https://www.quefondos.com/es/fondos/ficha/index.html?isin=LU1295551144"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
+    url = "https://www.boursorama.com/bourse/opcvm/cours/historique/0P00016RPN"
+
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=HEADERS, timeout=10)
         if r.status_code != 200:
             return None
     except Exception:
         return None
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    
-    # 1. Extracción del Valor Liquidativo (VL)
-    # QueFondos aloja el precio en el span dentro de la clase 'floatright'
-    vl_span = soup.find("span", class_="floatright")
-    if not vl_span:
+    soup = BeautifulSoup(r.text, "lxml")
+    table = soup.find("table")
+    if not table:
         return None
+
+    rows = table.find_all("tr")
+    data = []
+
+    for r_node in rows[1:]:
+        cols = r_node.find_all("td")
+        if len(cols) < 2:
+            continue
         
-    vl_txt = vl_span.get_text(strip=True)
-    
-    # 2. Extracción de la Fecha
-    # Se busca la etiqueta 'p' que contiene la fecha de actualización
-    fecha_txt = None
-    for p in soup.find_all("p"):
-        text = p.get_text(strip=True)
-        if "NAV" in text or "Valor Liquidativo" in text or "/" in text:
-            match = re.search(r'\d{2}/\d{2}/\d{4}', text)
-            if match:
-                fecha_txt = match.group(0)
-                break
-                
-    if not fecha_txt:
-        # Fecha por defecto de hoy si no se parsea del texto
-        fecha_txt = pd.Timestamp.now().strftime("%d/%m/%Y")
+        fecha_txt = cols[0].get_text(strip=True)
+        vl_txt = cols[1].get_text(strip=True)
+        
+        data.append({
+            "date": fecha_txt,
+            "vl": vl_txt
+        })
 
-    # 3. Formateo y Limpieza
-    vl_clean = vl_txt.replace("EUR", "").replace("USD", "").replace(" ", "").replace(",", ".")
-    try:
-        vl_float = float(vl_clean)
-    except ValueError:
+    if not data:
         return None
 
-    df = pd.DataFrame([{
-        "date": fecha_txt,
-        "vl": vl_float
-    }])
-    
-    # Formato de fecha europeo (DD/MM/YYYY)
+    df = pd.DataFrame(data)
+    # Formato de fecha europeo de Boursorama (DD/MM/YYYY)
     df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
-    df = df.dropna(subset=["date", "vl"])
     
+    # Limpieza de VL (espacios y comas)
+    df["vl"] = df["vl"].astype(str).str.replace(" ", "").str.replace(",", ".")
+    df["vl"] = pd.to_numeric(df["vl"], errors="coerce")
+    
+    df = df.dropna(subset=["date", "vl"])
     return df
 
 def procesar_un_isin(row, existing_keys):
@@ -135,7 +137,7 @@ def procesar_un_isin(row, existing_keys):
     
     # 1. Caso especial: Boursorama
     if isin == "LU1295551144":
-        df = fetch_quefondos_lu1295551144()
+        df = fetch_boursorama_lu1295551144()
         if df is None or df.empty:
             return None
             
